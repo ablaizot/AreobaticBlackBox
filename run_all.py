@@ -26,7 +26,8 @@ def web_cam():
     subprocess.run(web_cam_cmd, shell=True)
 
 def mavproxy():
-    output_file = increment_filename("mav_logs/mavproxy.log")
+    folder_name = increment_filename("mav_logs")
+    output_file = increment_filename(f"{folder_name}/mavproxy.log")
     mission = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     mavproxy_cmd = f"nohup mavproxy.py --non-interactive --baudrate=912000 --mission={mission} --state-basedir=mav_logs > {output_file} &"
     print(mavproxy_cmd)
