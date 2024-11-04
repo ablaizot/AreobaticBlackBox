@@ -1,6 +1,7 @@
 import subprocess
 import os
 from multiprocess import Process
+import datetime
 
 def increment_filename(filepath):
     base, ext = os.path.splitext(filepath)
@@ -24,11 +25,29 @@ def web_cam():
     print(web_cam_cmd)
     subprocess.run(web_cam_cmd, shell=True)
 
+def mavproxy():
+    output_file = increment_filename("mav_logs/mavproxy.log")
+    mission = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    mavproxy_cmd = f"nohup mavproxy.py --non-interactive --baudrate=912000 --mission={mission} --state-basedir=mav_logs > {output_file} &"
+    print(mavproxy_cmd)
+    subprocess.run(mavproxy_cmd, shell=True)
+
+def gps_logger():
+    output_file = increment_filename("gps_logs/gps.log")
+    gps_logger_cmd = f"nohup cat /dev/ttyACM1 > {output_file} &"
+    print(gps_logger_cmd)
+    subprocess.run(gps_logger_cmd, shell=True)
+
 def main():
     p1 = Process(target=see_cam)
     p2 = Process(target=web_cam)
+    p3 = Process(target=mavproxy)
+    p4 = Process(target=gps_logger)
+
     p1.start()
     p2.start()
+    p3.start()
+    p4.start()
 
 if __name__ == '__main__':
     main()
