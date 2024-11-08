@@ -1,16 +1,23 @@
 # Instructions
 
-There are two main components to start. After clonining the repo, make sure you run the commands from the top directory of the repo.
+There are two main components to start. After clonining the repo, make sure you run the commands from the top directory of the repo. The name of the folder is AreobaticBlackBox.
 
 Connect the Red to 5V. Green to GND. Brown to TX. Orange to RX.
 
-## Cameras
-The python script both_cam.py starts two UVC cameras and records the output in the Videos folder. They are both recording at 1920x1080 30 fps. The script increments the filename for every new recording.
+Connect to the raspberry pi with 
 
-Start the cameras with:
 ```
-nohup python3 both_cam.py &
+ssh coolhippo159@hostname
 ```
+
+Start all of the processes with:
+```
+nohup python3 run_all.py &
+```
+
+
+## Cameras
+The python script run_all.py starts two UVC cameras and records the output in the Videos folder. They are both recording at 1920x1080 30 fps. The script increments the filename for every new recording.
 
 ## Pixhawk and GPS
 
@@ -25,7 +32,7 @@ nohup mavproxy.py --non-interactive --baudrate=912000 > mavproxy.log &
 Listen to the GPS to Raspberry Pi
 
 ```
-nohup  cat /dev/ttyACM1 > ./gps.log &
+nohup cat /dev/ttyACM1 > gps.log &
 ```
 
 We referenced this guide https://oscarliang.com/gps-settings-u-center/ on configuring the GPS.
