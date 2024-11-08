@@ -30,7 +30,7 @@ def mavproxy():
     subprocess.run(f"mkdir {folder_name}", shell=True)
     output_file = increment_filename(f"{folder_name}/mavproxy.log")
     mission = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    mavproxy_cmd = f"nohup mavproxy.py --non-interactive --baudrate=912000 --mission={mission} --state-basedir=mav_logs > {output_file} &"
+    mavproxy_cmd = f"nohup mavproxy.py --non-interactive --baudrate=912000 --mission={mission} --state-basedir={folder_name} > {output_file} &"
     print(mavproxy_cmd)
     subprocess.run(mavproxy_cmd, shell=True)
 

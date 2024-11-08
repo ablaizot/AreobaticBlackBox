@@ -15,6 +15,7 @@ Start all of the processes with:
 nohup python3 run_all.py &
 ```
 
+Make sure the process is running by going to the gps_logs folder and opening the log with the largest number. Additionally, go the mav_logs folder and make sure the tlog size is increasing by running ls -lh multiple times. 
 
 ## Cameras
 The python script run_all.py starts two UVC cameras and records the output in the Videos folder. They are both recording at 1920x1080 30 fps. The script increments the filename for every new recording.
