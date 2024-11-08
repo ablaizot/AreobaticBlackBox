@@ -2,10 +2,11 @@
 
 There are two main components to start. After clonining the repo, make sure you run the commands from the top directory of the repo. The name of the folder is AreobaticBlackBox.
 
-Connect the Red to 5V. Green to GND. Brown to TX. Orange to RX.
+For the connection between the GPS and the Pixhawk, connect the Red to 5V, Green to GND, Brown to TX. Orange to RX.
 
-Connect to the raspberry pi with 
+Connect the GPS to the raspberry PI wil the microUSB cable. Connect the raspberry PI to the Pixhawk with the microUSB cable.
 
+Make sure you are on a network other than eduroam, and remotely access the raspberry PI.
 ```
 ssh coolhippo159@hostname
 ```
