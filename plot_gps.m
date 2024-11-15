@@ -36,6 +36,7 @@ lat = nonzeros(GPS_0(:,9));
 lon = nonzeros(GPS_0(:,10));
 
 geoscatter(lat,lon,"filled")
-geolimits([min(lat) max(lat)],[min(lon) max(lon)],[],)
+geolimits([min(lat) max(lat)],[min(lon) max(lon)])
+ 
 
 end
