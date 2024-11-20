@@ -1,17 +1,36 @@
-load("11_8_24\00000011.log-9169881.mat")
+load("11_17_24\00000002.BIN-18961732.mat")
 disp("https://ardupilot.org/plane/docs/logmessages.html")
 gps_status(GPS_0, GPA_0)
 plot_altitudes(GPS_0,BARO_0, BARO_1)
 plot_gps(GPS_0)
-
-
-load("11_8_24\00000008.BIN-13546824.mat")
-gps_status(GPS_0, GPA_0)
-plot_altitudes(GPS_0,BARO_0, BARO_1)
-
+takeoff_F1 = 2069751136.00000;
 figure
 lat = POS(:,3);
 lon = POS(:,4);
+plot_IMU(IMU_0)
+plot_IMU(IMU_1)
+plot_IMU(IMU_2)
 
-geoscatter(lat,lon,"filled")
-geolimits([min(lat) max(lat)],[min(lon) max(lon)])
+% geoscatter(lat,lon,"filled")
+% geolimits([min(lat) max(lat)],[min(lon) max(lon)])
+% 
+% load("11_17_24\00000003.BIN-11150736.mat")
+% gps_status(GPS_0, GPA_0)
+% plot_altitudes(GPS_0,BARO_0, BARO_1)
+% 
+% figure
+% lat = POS(:,3);
+% lon = POS(:,4);
+% 
+% geoscatter(lat,lon,"filled")
+% geolimits([min(lat) max(lat)],[min(lon) max(lon)])
+% 
+% plot_IMU(IMU_0)
+% plot_IMU(IMU_1)
+% plot_IMU(IMU_2)
+% 
+% 
+% plot_gps(GPS_0)
+% 
+% %load("11_17_24\00000006.BIN-3426423.mat")
+
