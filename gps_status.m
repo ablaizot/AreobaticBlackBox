@@ -2,7 +2,7 @@ function gps_status(GPS_0, GPA_0)
 %gps_status Plot diagnostics of GPS
 %   Detailed explanation goes here
 figure
-tiledlayout(5,1)
+tiledlayout(6,1)
 
 ax1 = nexttile;
 time_GPS = GPS_0(:,2) / 1e6;
@@ -17,6 +17,9 @@ xlabel("Time (s)")
 ylabel("Number of Satellites")
 
 time_GPA = GPA_0(:,2) / 1e6;
+
+nexttile
+plot(diff(GPS_0(:,2)/1e6))
 
 nexttile
 
