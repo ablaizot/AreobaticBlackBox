@@ -1,0 +1,10 @@
+%% Using this to check if GPS values qualify parameter defaults
+
+%From parameter defaults:
+gpsSpdErrLim = 1.0; %GPS use will not start if reported GPS speed error is greater than this (m/s)
+gpsPosErrLim = 5.0; %GPS use will not start if reported GPS position error is greater than this (m)
+
+%Check if values qualify
+Speed_used = gps_data.spd_error <= gpsSpdErrLim;
+Postion_used = gps_data.pos_error <= gpsPosErrLim;
+GPS_ON = Speed_used 
