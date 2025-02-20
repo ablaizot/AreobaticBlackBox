@@ -14,7 +14,7 @@ def parse_gngll(gngll_sentence):
             hours = int(time_str[0:2])
             minutes = int(time_str[2:4])
             seconds = int(time_str[4:6])
-            gps_time = time(hours, minutes, seconds).strftime('%H:%M:%S.%f')[:-4]
+            gps_time = f"{hours}:{minutes}:{seconds}"
             
             # Extract latitude and longitude
             latitude = parts[1] + ' ' + parts[2]
@@ -59,7 +59,8 @@ def record_video_segment(output_dir, filename, width, height, fps, duration_seco
             break
 
         # Get the latest GNGLL sentence from the file
-        gngll_sentence = get_latest_gngll_sentence('gps_logs/gps_7.log')
+        #gngll_sentence = get_latest_gngll_sentence('gps_logs/gps_7.log')
+        gngll_sentence = False
         if gngll_sentence:
             gps_time, latitude, longitude = parse_gngll(gngll_sentence)
         else:
@@ -84,7 +85,7 @@ def record_video_segment(output_dir, filename, width, height, fps, duration_seco
         cv2.putText(frame, coord_text, (10, 65), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
         
         # Display the frame
-        cv2.imshow('Recording in progress', frame)
+        #cv2.imshow('Recording in progress', frame)
         cv2.imwrite(f'Images/opencv{str(i)}.jpg', frame)
         i = i + 1
         
@@ -100,10 +101,10 @@ output_directory = "Recordings"
 os.makedirs(output_directory, exist_ok=True) # Create directory if it doesn't exist
 
 recording_interval_seconds = 300 # 5 minutes
-video_duration_seconds = 10 # 1 minute
+video_duration_seconds = 30 # 1 minute
 
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 video_filename = f"recording_{timestamp}.mp4"
-success = record_video_segment(output_directory, video_filename, 640, 480, 30, video_duration_seconds)
+success = record_video_segment(output_directory, video_filename, 1920, 1080, 60, video_duration_seconds)
 if not success:
     print("Warning: Video recording failed. Retrying...")
