@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 import os
 import subprocess
+import glob
 
 #ffmpeg -framerate 60 -i Images/opencv%d.jpg -c:v mjpeg output.mjpeg
 
@@ -28,10 +29,14 @@ def parse_gngll(gngll_sentence):
         return "Time Error", "Lat Error", "Lon Error"
     return "No Time", "No Lat", "No Lon"
 
-def get_latest_gngll_sentence(file_path):
+def get_latest_gngll_sentence(directory):
     """Read the latest GNGLL sentence from a file"""
+    list_of_files = glob.glob(os.path.join(directory, '*.log'))
+    if not list_of_files:
+        return None
+    latest_file = max(list_of_files, key=os.path.getmtime)
     latest_gngll = None
-    with open(file_path, 'r') as file:
+    with open(latest_file, 'r') as file:
         for line in file:
             if line.startswith('$GNGLL'):
                 latest_gngll = line.strip()
@@ -64,7 +69,7 @@ def record_video_segment(output_dir, filename, width, height, fps, duration_seco
             break
 
         # Get the latest GNGLL sentence from the file
-        gngll_sentence = get_latest_gngll_sentence('gps_logs/gps_7.log')
+        gngll_sentence = get_latest_gngll_sentence('gps_logs')
         gngll_sentence = False
         if gngll_sentence:
             gps_time, latitude, longitude = parse_gngll(gngll_sentence)
