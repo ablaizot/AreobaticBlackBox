@@ -3,6 +3,8 @@ import time
 from datetime import datetime
 import os
 
+#ffmpeg -framerate 60 -i Images/opencv%d.jpg -c:v mjpeg output.mjpeg
+
 def parse_gngll(gngll_sentence):
     """Parse UTC time and coordinates from GNGLL sentence"""
     try:
@@ -47,7 +49,9 @@ def record_video_segment(output_dir, filename, width, height, fps, duration_seco
     
     if not video_writer.isOpened():
         print("Error: video writer failed")
-
+        return False
+    
+    frame_count = 0
     start_time = time.time()
     assert camera.isOpened()
     i = 0
@@ -76,6 +80,10 @@ def record_video_segment(output_dir, filename, width, height, fps, duration_seco
         frame_text = f"Frame {i} {elapsed_time}/{duration_seconds} seconds"
         time_text = f"Time: {timestamp}"
         coord_text = f"Lat: {latitude} Lon: {longitude}"
+
+        # Calculate FPS
+        frame_count += 1
+        fps_text = f"FPS: {frame_count / (time.time() - start_time):.2f}"
         
         # Add frame counter
         cv2.putText(frame, frame_text, (10, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
@@ -84,6 +92,9 @@ def record_video_segment(output_dir, filename, width, height, fps, duration_seco
         # Add coordinates
         cv2.putText(frame, coord_text, (10, 65), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
         
+        # Add FPS
+        cv2.putText(frame, fps_text, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+
         # Display the frame
         #cv2.imshow('Recording in progress', frame)
         cv2.imwrite(f'Images/opencv{str(i)}.jpg', frame)
