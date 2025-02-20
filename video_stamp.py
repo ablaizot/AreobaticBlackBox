@@ -80,6 +80,8 @@ def record_video_segment(output_dir, filename, width, height, fps, duration_seco
         current_date = datetime.now().strftime("%Y-%m-%d")
         
         # Combine date and GPS time
+        if gps_time == "No GPS Time":
+            gps_time = datetime.now().strftime("%H:%M:%S.%f")[:-4]
         timestamp = f"{current_date} {gps_time}"
         
         elapsed_time = int(time.time() - start_time)
