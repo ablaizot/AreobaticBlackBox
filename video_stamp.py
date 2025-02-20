@@ -3,6 +3,31 @@ import time
 from datetime import datetime
 import os
 
+def parse_gngll_time(gngll_sentence):
+    """Parse UTC time from GNGLL sentence"""
+    try:
+        # Split the sentence and get the time part (position 5)
+        parts = gngll_sentence.split(',')
+        if len(parts) >= 6:
+            time_str = parts[5]
+            # Extract hours, minutes, seconds
+            hours = int(time_str[0:2])
+            minutes = int(time_str[2:4])
+            seconds = int(time_str[4:6])
+            return time(hours, minutes, seconds).strftime('%H:%M:%S.%f')[:-4]
+    except (IndexError, ValueError):
+        return "Time Error"
+    return "No Time"
+
+def get_latest_gngll_sentence(file_path):
+    """Read the latest GNGLL sentence from a file"""
+    latest_gngll = None
+    with open(file_path, 'r') as file:
+        for line in file:
+            if line.startswith('$GNGLL'):
+                latest_gngll = line.strip()
+    return latest_gngll
+
 def record_video_segment(output_dir, filename, width, height, fps, duration_seconds):
     camera = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
     if not camera.isOpened():
@@ -26,13 +51,34 @@ def record_video_segment(output_dir, filename, width, height, fps, duration_seco
         if not ret:
             print("Error: Could not read frame from webcam.")
             break
+
+        # Get the latest GNGLL sentence from the file
+        gngll_sentence = get_latest_gngll_sentence('/c:/School/Senior_Desgin/gps_7.log')
+        if gngll_sentence:
+            gps_time = parse_gngll_time(gngll_sentence)
+        else:
+            gps_time = "No GPS Time"
+        
+        # Get current date from Raspberry Pi
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        
+        # Combine date and GPS time
+        timestamp = f"{current_date} {gps_time}"
+        
         elapsed_time = int(time.time() - start_time)
-        text = f"Frame {i} {elapsed_time}/{duration_seconds} seconds"
-        cv2.putText(frame, text, (10, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-        #video_writer.write(frame)
+        frame_text = f"Frame {i} {elapsed_time}/{duration_seconds} seconds"
+        time_text = f"Time: {timestamp}"
+        
+        # Add frame counter
+        cv2.putText(frame, frame_text, (10, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+        # Add timestamp
+        cv2.putText(frame, time_text, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        
+        # Display the frame
         cv2.imshow('Recording in progress', frame)
-        cv2.imwrite('Images/opencv'+str(i)+'.jpg', frame)
-        i= i+1
+        cv2.imwrite(f'Images/opencv{str(i)}.jpg', frame)
+        i = i + 1
+        
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
