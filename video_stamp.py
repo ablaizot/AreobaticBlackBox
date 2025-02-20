@@ -3,10 +3,10 @@ import time
 from datetime import datetime
 import os
 
-def parse_gngll_time(gngll_sentence):
-    """Parse UTC time from GNGLL sentence"""
+def parse_gngll(gngll_sentence):
+    """Parse UTC time and coordinates from GNGLL sentence"""
     try:
-        # Split the sentence and get the time part (position 5)
+        # Split the sentence and get the relevant parts
         parts = gngll_sentence.split(',')
         if len(parts) >= 6:
             time_str = parts[5]
@@ -14,10 +14,16 @@ def parse_gngll_time(gngll_sentence):
             hours = int(time_str[0:2])
             minutes = int(time_str[2:4])
             seconds = int(time_str[4:6])
-            return time(hours, minutes, seconds).strftime('%H:%M:%S.%f')[:-4]
+            gps_time = time(hours, minutes, seconds).strftime('%H:%M:%S.%f')[:-4]
+            
+            # Extract latitude and longitude
+            latitude = parts[1] + ' ' + parts[2]
+            longitude = parts[3] + ' ' + parts[4]
+            
+            return gps_time, latitude, longitude
     except (IndexError, ValueError):
-        return "Time Error"
-    return "No Time"
+        return "Time Error", "Lat Error", "Lon Error"
+    return "No Time", "No Lat", "No Lon"
 
 def get_latest_gngll_sentence(file_path):
     """Read the latest GNGLL sentence from a file"""
@@ -53,11 +59,11 @@ def record_video_segment(output_dir, filename, width, height, fps, duration_seco
             break
 
         # Get the latest GNGLL sentence from the file
-        gngll_sentence = get_latest_gngll_sentence('/c:/School/Senior_Desgin/gps_7.log')
+        gngll_sentence = get_latest_gngll_sentence('gps_logs/gps_7.log')
         if gngll_sentence:
-            gps_time = parse_gngll_time(gngll_sentence)
+            gps_time, latitude, longitude = parse_gngll(gngll_sentence)
         else:
-            gps_time = "No GPS Time"
+            gps_time, latitude, longitude = "No GPS Time", "No Lat", "No Lon"
         
         # Get current date from Raspberry Pi
         current_date = datetime.now().strftime("%Y-%m-%d")
@@ -68,11 +74,14 @@ def record_video_segment(output_dir, filename, width, height, fps, duration_seco
         elapsed_time = int(time.time() - start_time)
         frame_text = f"Frame {i} {elapsed_time}/{duration_seconds} seconds"
         time_text = f"Time: {timestamp}"
+        coord_text = f"Lat: {latitude} Lon: {longitude}"
         
         # Add frame counter
         cv2.putText(frame, frame_text, (10, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
         # Add timestamp
         cv2.putText(frame, time_text, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        # Add coordinates
+        cv2.putText(frame, coord_text, (10, 65), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
         
         # Display the frame
         cv2.imshow('Recording in progress', frame)
