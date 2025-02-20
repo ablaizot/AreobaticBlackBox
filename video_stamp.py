@@ -2,6 +2,7 @@ import cv2
 import time
 from datetime import datetime
 import os
+import subprocess
 
 #ffmpeg -framerate 60 -i Images/opencv%d.jpg -c:v mjpeg output.mjpeg
 
@@ -63,7 +64,7 @@ def record_video_segment(output_dir, filename, width, height, fps, duration_seco
             break
 
         # Get the latest GNGLL sentence from the file
-        #gngll_sentence = get_latest_gngll_sentence('gps_logs/gps_7.log')
+        gngll_sentence = get_latest_gngll_sentence('gps_logs/gps_7.log')
         gngll_sentence = False
         if gngll_sentence:
             gps_time, latitude, longitude = parse_gngll(gngll_sentence)
@@ -112,10 +113,14 @@ output_directory = "Recordings"
 os.makedirs(output_directory, exist_ok=True) # Create directory if it doesn't exist
 
 recording_interval_seconds = 300 # 5 minutes
-video_duration_seconds = 30 # 1 minute
+video_duration_seconds = 10 # 1 minute
 
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 video_filename = f"recording_{timestamp}.mp4"
-success = record_video_segment(output_directory, video_filename, 1920, 1080, 60, video_duration_seconds)
+subprocess.run(f"sudo usbreset 2560:c128", shell=True)
+time.sleep(5)
+success = record_video_segment(output_directory, video_filename, 1280, 720, 30, video_duration_seconds)
 if not success:
     print("Warning: Video recording failed. Retrying...")
+else:
+    print("success")
