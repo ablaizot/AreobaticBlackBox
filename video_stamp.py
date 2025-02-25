@@ -1,133 +1,136 @@
+from __future__ import print_function
 import cv2
 import time
 from datetime import datetime
 import os
 import subprocess
 import glob
+from multiprocessing.pool import ThreadPool
+from collections import deque
 
-#ffmpeg -framerate 60 -i Images/opencv%d.jpg -c:v mjpeg output.mjpeg
+class VideoProcessor:
+    def __init__(self, width=1280, height=720, fps=30):
+        self.width = width
+        self.height = height
+        self.fps = fps
+        self.frame_count = 0
+        self.start_time = time.time()
 
-def parse_gngll(gngll_sentence):
-    """Parse UTC time and coordinates from GNGLL sentence"""
-    try:
-        # Split the sentence and get the relevant parts
-        parts = gngll_sentence.split(',')
-        if len(parts) >= 6:
-            time_str = parts[5]
-            # Extract hours, minutes, seconds
-            hours = int(time_str[0:2])
-            minutes = int(time_str[2:4])
-            seconds = int(time_str[4:6])
-            gps_time = f"{hours}:{minutes}:{seconds}"
-            
-            # Extract latitude and longitude
-            latitude = parts[1] + ' ' + parts[2]
-            longitude = parts[3] + ' ' + parts[4]
-            
-            return gps_time, latitude, longitude
-    except (IndexError, ValueError):
-        return "Time Error", "Lat Error", "Lon Error"
-    return "No Time", "No Lat", "No Lon"
-
-def get_latest_gngll_sentence(directory):
-    """Read the latest GNGLL sentence from a file"""
-    list_of_files = glob.glob(os.path.join(directory, '*.log'))
-    if not list_of_files:
-        return None
-    latest_file = max(list_of_files, key=os.path.getmtime)
-    latest_gngll = None
-    with open(latest_file, 'r') as file:
-        for line in file:
-            if line.startswith('$GNGLL'):
-                latest_gngll = line.strip()
-    return latest_gngll
-
-def record_video_segment(output_dir, filename, width, height, fps, duration_seconds):
-    camera = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
-    if not camera.isOpened():
-        print("Error: Could not open webcam.")
-        return False
-
-    camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec for AVI video
-    video_writer = cv2.VideoWriter('output_stamped.mp4', fourcc, fps, (width, height))
-    
-    if not video_writer.isOpened():
-        print("Error: video writer failed")
-        return False
-    
-    frame_count = 0
-    start_time = time.time()
-    assert camera.isOpened()
-    i = 0
-    while (time.time() - start_time) < duration_seconds:
-        ret, frame = camera.read()
-        
-        if not ret:
-            print("Error: Could not read frame from webcam.")
-            break
-
+    def process_frame(self, frame, t0):
+        """Process a single frame with GPS and timestamp overlay"""
         # Get the latest GNGLL sentence from the file
-        gngll_sentence = get_latest_gngll_sentence('gps_logs')
-        gngll_sentence = False
+        gngll_sentence = self.get_latest_gngll_sentence('gps_logs')
         if gngll_sentence:
-            gps_time, latitude, longitude = parse_gngll(gngll_sentence)
+            gps_time, latitude, longitude = self.parse_gngll(gngll_sentence)
         else:
             gps_time, latitude, longitude = "No GPS Time", "No Lat", "No Lon"
         
-        # Get current date from Raspberry Pi
+        # Get current date and combine with GPS time
         current_date = datetime.now().strftime("%Y-%m-%d")
-        
-        # Combine date and GPS time
         if gps_time == "No GPS Time":
             gps_time = datetime.now().strftime("%H:%M:%S.%f")[:-4]
         timestamp = f"{current_date} {gps_time}"
         
-        elapsed_time = int(time.time() - start_time)
-        frame_text = f"Frame {i} {elapsed_time}/{duration_seconds} seconds"
-        time_text = f"Time: {timestamp}"
-        coord_text = f"Lat: {latitude} Lon: {longitude}"
-
-        # Calculate FPS
-        frame_count += 1
-        fps_text = f"FPS: {frame_count / (time.time() - start_time):.2f}"
+        # Calculate display metrics
+        self.frame_count += 1
+        elapsed_time = int(time.time() - self.start_time)
         
-        # Add frame counter
-        cv2.putText(frame, frame_text, (10, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-        # Add timestamp
-        cv2.putText(frame, time_text, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        # Add coordinates
-        cv2.putText(frame, coord_text, (10, 65), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+        # Add text overlays
+        texts = [
+            (f"Frame {self.frame_count}", (10, 15), (0, 0, 255)),
+            (f"Time: {timestamp}", (10, 40), (0, 255, 0)),
+            (f"Lat: {latitude} Lon: {longitude}", (10, 65), (255, 0, 0)),
+            (f"FPS: {self.frame_count / (time.time() - self.start_time):.2f}", (10, 90), (255, 255, 0))
+        ]
         
-        # Add FPS
-        cv2.putText(frame, fps_text, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
-
-        # Display the frame
-        #cv2.imshow('Recording in progress', frame)
-        cv2.imwrite(f'Images/opencv{str(i)}.jpg', frame)
-        i = i + 1
+        for text, pos, color in texts:
+            cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
         
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        return frame, t0
 
-    camera.release()
-    video_writer.release()
-    cv2.destroyAllWindows()
-    return True
+    @staticmethod
+    def parse_gngll(gngll_sentence):
+        """Parse UTC time and coordinates from GNGLL sentence"""
+        try:
+            parts = gngll_sentence.split(',')
+            if len(parts) >= 6:
+                time_str = parts[5]
+                hours = int(time_str[0:2])
+                minutes = int(time_str[2:4])
+                seconds = int(time_str[4:6])
+                gps_time = f"{hours}:{minutes}:{seconds}"
+                latitude = parts[1] + ' ' + parts[2]
+                longitude = parts[3] + ' ' + parts[4]
+                return gps_time, latitude, longitude
+        except (IndexError, ValueError):
+            return "Time Error", "Lat Error", "Lon Error"
+        return "No Time", "No Lat", "No Lon"
 
-output_directory = "Recordings"
-os.makedirs(output_directory, exist_ok=True) # Create directory if it doesn't exist
+    @staticmethod
+    def get_latest_gngll_sentence(directory):
+        """Read the latest GNGLL sentence from a file"""
+        list_of_files = glob.glob(os.path.join(directory, '*.log'))
+        if not list_of_files:
+            return None
+        latest_file = max(list_of_files, key=os.path.getmtime)
+        latest_gngll = None
+        with open(latest_file, 'r') as file:
+            for line in file:
+                if line.startswith('$GNGLL'):
+                    latest_gngll = line.strip()
+        return latest_gngll
 
-recording_interval_seconds = 300 # 5 minutes
-video_duration_seconds = 10 # 1 minute
+def main():
+    # Initialize video capture
+    camera = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
+    if not camera.isOpened():
+        print("Error: Could not open webcam.")
+        return
 
-timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-video_filename = f"recording_{timestamp}.mp4"
-subprocess.run(f"sudo usbreset 2560:c128", shell=True)
-time.sleep(5)
-success = record_video_segment(output_directory, video_filename, 1280, 720, 30, video_duration_seconds)
-if not success:
-    print("Warning: Video recording failed. Retrying...")
-else:
-    print("success")
+    # Set up video parameters
+    processor = VideoProcessor(1280, 720, 30)
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, processor.width)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, processor.height)
+    
+    # Initialize threading
+    threadn = cv2.getNumberOfCPUs()
+    pool = ThreadPool(processes=threadn)
+    pending = deque()
+    
+    # Create output directory
+    os.makedirs("Images", exist_ok=True)
+    
+    frame_idx = 0
+    try:
+        while True:
+            # Process frames in parallel
+            if len(pending) < threadn:
+                ret, frame = camera.read()
+                if not ret:
+                    break
+                task = pool.apply_async(processor.process_frame, (frame.copy(), time.time()))
+                pending.append(task)
+
+            # Get processed frames
+            while pending and pending[0].ready():
+                processed_frame, _ = pending.popleft().get()
+                cv2.imwrite(f'Images/opencv{str(frame_idx)}.jpg', processed_frame)
+                frame_idx += 1
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+    finally:
+        camera.release()
+        cv2.destroyAllWindows()
+        
+        # Convert frames to video using ffmpeg
+        subprocess.run([
+            'ffmpeg', '-y', '-framerate', str(processor.fps),
+            '-i', 'Images/opencv%d.jpg',
+            '-c:v', 'mjpeg',
+            f'output_{datetime.now().strftime("%Y%m%d_%H%M%S")}.mjpeg'
+        ])
+
+if __name__ == '__main__':
+    main()
