@@ -120,6 +120,9 @@ def main():
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
+            if frame_idx >= 150:
+                break
+
     finally:
         camera.release()
         cv2.destroyAllWindows()
