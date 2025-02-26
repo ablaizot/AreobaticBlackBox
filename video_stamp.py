@@ -121,53 +121,71 @@ class AsyncFrameWriter:
             worker.join()
 
 def main():
-    # Initialize video capture
-    camera = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
-    if not camera.isOpened():
-        print("Error: Could not open webcam.")
+    # Initialize video captures
+    camera0 = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
+    camera1 = cv2.VideoCapture(1, apiPreference=cv2.CAP_V4L2)
+    
+    if not camera0.isOpened() or not camera1.isOpened():
+        print("Error: Could not open one or both webcams.")
         return
 
     # Set up video parameters
     W, H = 1920, 1080
-    processor = VideoProcessor(W, H, 120)
+    processor0 = VideoProcessor(W, H, 120)
+    processor1 = VideoProcessor(W, H, 30)
 
-    camera.set(cv2.CAP_PROP_FRAME_WIDTH, W)
-    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
-    camera.set(cv2.CAP_PROP_FPS, 120)
-    camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+    # Configure both cameras
+    for camera in [camera0, camera1]:
+        camera.set(cv2.CAP_PROP_FRAME_WIDTH, W)
+        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
+        camera.set(cv2.CAP_PROP_FPS, 120)
+        camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
     
     # Initialize threading
     threadn = cv2.getNumberOfCPUs()
     pool = ThreadPool(processes=threadn)
-    pending = deque()
+    pending0 = deque()
+    pending1 = deque()
     
-    # Create output directory
-    os.makedirs("Images", exist_ok=True)
-    #clear images in the directory
-    files = glob.glob('Images/*')
-    for f in files: 
-        os.remove(f)
+    # Create output directories
+    os.makedirs("Images/cam0", exist_ok=True)
+    os.makedirs("Images/cam1", exist_ok=True)
     
+    # Clear images in the directories
+    for dir in ['Images/cam0/*', 'Images/cam1/*']:
+        files = glob.glob(dir)
+        for f in files: 
+            os.remove(f)
     
-    # Initialize async frame writer
-    frame_writer = AsyncFrameWriter()
+    # Initialize async frame writers
+    frame_writer0 = AsyncFrameWriter(output_dir="Images/cam0")
+    frame_writer1 = AsyncFrameWriter(output_dir="Images/cam1")
     
     frame_idx = 0
     try:
         while True:
-            # Process frames in parallel
-            if len(pending) < threadn:
-                ret, frame = camera.read()
-                if not ret:
+            # Process frames in parallel for both cameras
+            if len(pending0) < threadn:
+                ret0, frame0 = camera0.read()
+                ret1, frame1 = camera1.read()
+                if not ret0 or not ret1:
                     break
-                task = pool.apply_async(processor.process_frame, (frame.copy(), time.time()))
-                pending.append(task)
+                
+                task0 = pool.apply_async(processor0.process_frame, (frame0.copy(), time.time()))
+                task1 = pool.apply_async(processor1.process_frame, (frame1.copy(), time.time()))
+                pending0.append(task0)
+                pending1.append(task1)
 
-            # Get processed frames
-            while pending and pending[0].ready():
-                processed_frame, _ = pending.popleft().get()
-                cv2.imshow('frame' , processed_frame)
-                frame_writer.write_frame(processed_frame, frame_idx)
+            # Get processed frames from both cameras
+            while pending0 and pending0[0].ready() and pending1 and pending1[0].ready():
+                processed_frame0, _ = pending0.popleft().get()
+                processed_frame1, _ = pending1.popleft().get()
+                
+                cv2.imshow('camera0', processed_frame0)
+                cv2.imshow('camera1', processed_frame1)
+                
+                frame_writer0.write_frame(processed_frame0, frame_idx)
+                frame_writer1.write_frame(processed_frame1, frame_idx)
                 frame_idx += 1
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -178,17 +196,20 @@ def main():
 
     finally:
         # Clean up
-        camera.release()
+        camera0.release()
+        camera1.release()
         cv2.destroyAllWindows()
-        frame_writer.stop()
+        frame_writer0.stop()
+        frame_writer1.stop()
         
-        # Convert frames to video using ffmpeg
-        subprocess.run([
-            'ffmpeg', '-y', '-framerate', str(processor.fps),
-            '-i', 'Images/opencv%d.jpg',
-            '-c:v', 'mjpeg',
-            f'output_{datetime.now().strftime("%Y%m%d_%H%M%S")}.mjpeg'
-        ])
+        # Convert frames to video using ffmpeg for both cameras
+        for cam_id in [0, 1]:
+            subprocess.run([
+                'ffmpeg', '-y', '-framerate', str(processor0.fps),
+                '-i', f'Images/cam{cam_id}/opencv%d.jpg',
+                '-c:v', 'mjpeg',
+                f'output_cam{cam_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.mjpeg'
+            ])
 
 if __name__ == '__main__':
     main()
