@@ -162,7 +162,7 @@ def main():
             while pending and pending[0].ready():
                 processed_frame, _ = pending.popleft().get()
                 cv2.imshow('frame' , processed_frame)
-                frame_writer.write_frame(processed_frame, frame_idx)
+                #frame_writer.write_frame(processed_frame, frame_idx)
                 frame_idx += 1
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
