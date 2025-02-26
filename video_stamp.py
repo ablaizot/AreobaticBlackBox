@@ -44,6 +44,10 @@ class VideoProcessor:
             (f"Lat: {latitude} Lon: {longitude}", (10, 65), (255, 0, 0)),
             (f"FPS: {self.frame_count / (time.time() - self.start_time):.2f}", (10, 90), (255, 255, 0))
         ]
+        print(f"Frame {self.frame_count} processed in {time.time() - t0:.2f} seconds")
+        #print FPS
+        print(f"FPS: {self.frame_count / (time.time() - self.start_time):.2f}")
+
         
         for text, pos, color in texts:
             cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
@@ -157,6 +161,7 @@ def main():
             # Get processed frames
             while pending and pending[0].ready():
                 processed_frame, _ = pending.popleft().get()
+                cv2.imshow('frame' , processed_frame)
                 frame_writer.write_frame(processed_frame, frame_idx)
                 frame_idx += 1
 
