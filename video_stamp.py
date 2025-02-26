@@ -161,7 +161,7 @@ def main():
             # Get processed frames
             while pending and pending[0].ready():
                 processed_frame, _ = pending.popleft().get()
-                cv2.imshow('frame' , processed_frame)
+                #cv2.imshow('frame' , processed_frame)
                 #frame_writer.write_frame(processed_frame, frame_idx)
                 frame_idx += 1
 
