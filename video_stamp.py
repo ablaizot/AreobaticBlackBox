@@ -22,14 +22,15 @@ class VideoProcessor:
         """Process a single frame with GPS and timestamp overlay"""
         # Get the latest GNGLL sentence from the file
         gngll_sentence = self.get_latest_gngll_sentence('gps_logs')
+        gps_time = ''
         if gngll_sentence:
             gps_time, latitude, longitude = self.parse_gngll(gngll_sentence)
         else:
-            gps_time, latitude, longitude = "No GPS Time", "No Lat", "No Lon"
+            latitude, longitude = "No Lat", "No Lon"
         
         # Get current date and combine with GPS time
         current_date = datetime.now().strftime("%Y-%m-%d")
-        if gps_time == "No GPS Time":
+        if not gps_time:
             gps_time = datetime.now().strftime("%H:%M:%S.%f")[:-4]
         timestamp = f"{current_date} {gps_time}"
         
@@ -127,9 +128,13 @@ def main():
         return
 
     # Set up video parameters
-    processor = VideoProcessor(1280, 720, 30)
-    camera.set(cv2.CAP_PROP_FRAME_WIDTH, processor.width)
-    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, processor.height)
+    W, H = 1920, 1080
+    processor = VideoProcessor(W, H, 120)
+
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, W)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
+    camera.set(cv2.CAP_PROP_FPS, 120)
+    camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
     
     # Initialize threading
     threadn = cv2.getNumberOfCPUs()
@@ -161,14 +166,14 @@ def main():
             # Get processed frames
             while pending and pending[0].ready():
                 processed_frame, _ = pending.popleft().get()
-                #cv2.imshow('frame' , processed_frame)
-                #frame_writer.write_frame(processed_frame, frame_idx)
+                cv2.imshow('frame' , processed_frame)
+                frame_writer.write_frame(processed_frame, frame_idx)
                 frame_idx += 1
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
-            if frame_idx >= 150:
+            if frame_idx >= 1000:
                 break
 
     finally:
