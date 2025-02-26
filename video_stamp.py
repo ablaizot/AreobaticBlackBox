@@ -7,6 +7,8 @@ import subprocess
 import glob
 from multiprocessing.pool import ThreadPool
 from collections import deque
+from queue import Queue
+from threading import Thread
 
 class VideoProcessor:
     def __init__(self, width=1280, height=720, fps=30):
@@ -80,6 +82,39 @@ class VideoProcessor:
                     latest_gngll = line.strip()
         return latest_gngll
 
+class AsyncFrameWriter:
+    def __init__(self, output_dir="Images", num_workers=4):
+        self.output_dir = output_dir
+        self.queue = Queue()
+        self.workers = []
+        
+        # Create worker threads
+        for _ in range(num_workers):
+            worker = Thread(target=self._worker_thread, daemon=True)
+            worker.start()
+            self.workers.append(worker)
+    
+    def _worker_thread(self):
+        while True:
+            frame_data = self.queue.get()
+            if frame_data is None:
+                break
+            frame, idx = frame_data
+            cv2.imwrite(f'{self.output_dir}/opencv{str(idx)}.jpg', frame)
+            print(f"Queue size {self.queue.qsize()}\n" )
+            self.queue.task_done()
+    
+    def write_frame(self, frame, idx):
+        self.queue.put((frame, idx))
+    
+    def stop(self):
+        # Send stop signal to all workers
+        for _ in self.workers:
+            self.queue.put(None)
+        # Wait for all workers to finish
+        for worker in self.workers:
+            worker.join()
+
 def main():
     # Initialize video capture
     camera = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
@@ -99,6 +134,14 @@ def main():
     
     # Create output directory
     os.makedirs("Images", exist_ok=True)
+    #clear images in the directory
+    files = glob.glob('Images/*')
+    for f in files: 
+        os.remove(f)
+    
+    
+    # Initialize async frame writer
+    frame_writer = AsyncFrameWriter()
     
     frame_idx = 0
     try:
@@ -114,7 +157,7 @@ def main():
             # Get processed frames
             while pending and pending[0].ready():
                 processed_frame, _ = pending.popleft().get()
-                cv2.imwrite(f'Images/opencv{str(frame_idx)}.jpg', processed_frame)
+                frame_writer.write_frame(processed_frame, frame_idx)
                 frame_idx += 1
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -124,8 +167,10 @@ def main():
                 break
 
     finally:
+        # Clean up
         camera.release()
         cv2.destroyAllWindows()
+        frame_writer.stop()
         
         # Convert frames to video using ffmpeg
         subprocess.run([
