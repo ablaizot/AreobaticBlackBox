@@ -126,7 +126,7 @@ class AsyncFrameWriter:
 def main():
     # Initialize video captures
     camera0 = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
-    camera1 = cv2.VideoCapture(1, apiPreference=cv2.CAP_V4L2)
+    camera1 = cv2.VideoCapture(2, apiPreference=cv2.CAP_V4L2)
     
     if not camera0.isOpened() or not camera1.isOpened():
         print("Error: Could not open one or both webcams.")
