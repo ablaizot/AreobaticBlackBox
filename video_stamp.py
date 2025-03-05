@@ -23,6 +23,8 @@ class VideoProcessor:
         # Get the latest GNGLL sentence from the file
         gngll_sentence = self.get_latest_gngll_sentence('gps_logs')
         gps_time = ''
+        latitude = ''
+        longitude = ''
         if gngll_sentence:
             gps_time, latitude, longitude = self.parse_gngll(gngll_sentence)
         else:
