@@ -46,6 +46,9 @@ class VideoProcessor:
             (f"FPS: {self.frame_count / (time.time() - self.start_time):.2f}", (10, 90), (255, 255, 0))
         ]
         print(f"Frame {self.frame_count} processed in {time.time() - t0:.2f} seconds")
+        #print gps_time, latitude, longitude
+        print(f"Time: {timestamp}")
+        print(f"Lat: {latitude} Lon: {longitude}")
         #print FPS
         print(f"FPS: {self.frame_count / (time.time() - self.start_time):.2f}")
 
