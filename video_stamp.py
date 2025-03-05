@@ -86,10 +86,12 @@ class VideoProcessor:
             return None
         latest_file = max(list_of_files, key=os.path.getmtime)
         latest_gngll = None
+        print(f"Reading from {latest_file}")
         with open(latest_file, 'r') as file:
             for line in file:
                 if line.startswith('$GNGLL'):
                     latest_gngll = line.strip()
+        print(f"Latest GNGLL: {latest_gngll}")
         return latest_gngll
 
 class AsyncFrameWriter:
