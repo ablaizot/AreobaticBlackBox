@@ -12,6 +12,15 @@ def increment_filename(filepath):
         counter += 1
     return new_filepath
 
+def video_stamp():
+    # Create Videos directory if it doesn't exist
+    os.makedirs("Videos", exist_ok=True)
+    
+    # Run video_stamp.py as a subprocess
+    video_stamp_cmd = f"python3 video_stamp.py"
+    print(video_stamp_cmd)
+    subprocess.run(video_stamp_cmd, shell=True)
+
 def see_cam():
     output_file = increment_filename("Videos/see_cam.mjpeg")
     see_cam_cmd = f"sudo v4l2-ctl --device /dev/video0 --stream-mmap --stream-to={output_file} --stream-count=1000000 --set-fmt-video=width=1920,height=1080,pixelformat=MJPG --set-parm 30"
@@ -35,19 +44,37 @@ def mavproxy():
     subprocess.run(mavproxy_cmd, shell=True)
 
 def gps_logger():
+    # Try ttyACM1 first
     output_file = increment_filename("gps_logs/gps.log")
-    gps_logger_cmd = f"nohup cat /dev/ttyACM1 > {output_file} &"
-    print(gps_logger_cmd)
-    subprocess.run(gps_logger_cmd, shell=True)
+    device = "/dev/ttyACM1"
+    
+    # Check if ttyACM1 exists and is readable
+    if not os.path.exists(device):
+        print(f"{device} not found, trying ttyACM0")
+        device = "/dev/ttyACM0"
+        
+    if not os.path.exists(device):
+        print("No GPS device found")
+        return
+        
+    try:
+        # Try to open the device to verify it's accessible
+        with open(device, 'r') as f:
+            print(f"GPS device found at {device}")
+            
+        gps_logger_cmd = f"nohup cat {device} > {output_file} &"
+        print(gps_logger_cmd)
+        subprocess.run(gps_logger_cmd, shell=True)
+        
+    except (PermissionError, IOError) as e:
+        print(f"Error accessing GPS device: {e}")
 
 def main():
-    p1 = Process(target=see_cam)
-    p2 = Process(target=web_cam)
+    p1 = Process(target=video_stamp)
     p3 = Process(target=mavproxy)
     p4 = Process(target=gps_logger)
 
     p1.start()
-    p2.start()
     p3.start()
     p4.start()
 
