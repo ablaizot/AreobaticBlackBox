@@ -2,7 +2,7 @@ import subprocess
 import os
 from multiprocess import Process
 import datetime
-import video_stamp
+from video_stamp import stamp_video
 
 def increment_filename(filepath):
     base, ext = os.path.splitext(filepath)
