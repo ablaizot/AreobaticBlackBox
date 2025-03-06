@@ -127,7 +127,7 @@ class AsyncFrameWriter:
         for worker in self.workers:
             worker.join()
 
-def main():
+def video_stamp():
     # Initialize video captures
     camera0 = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
     camera1 = cv2.VideoCapture(2, apiPreference=cv2.CAP_V4L2)
@@ -218,5 +218,3 @@ def main():
                 f'output_cam{cam_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.mjpeg'
             ])
 
-if __name__ == '__main__':
-    main()

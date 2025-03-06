@@ -2,6 +2,7 @@ import subprocess
 import os
 from multiprocess import Process
 import datetime
+import video_stamp
 
 def increment_filename(filepath):
     base, ext = os.path.splitext(filepath)
@@ -11,15 +12,6 @@ def increment_filename(filepath):
         new_filepath = f"{base}_{counter}{ext}"
         counter += 1
     return new_filepath
-
-def video_stamp():
-    # Create Videos directory if it doesn't exist
-    os.makedirs("Videos", exist_ok=True)
-    
-    # Run video_stamp.py as a subprocess
-    video_stamp_cmd = f"python3 video_stamp.py"
-    print(video_stamp_cmd)
-    subprocess.run(video_stamp_cmd, shell=True)
 
 def see_cam():
     output_file = increment_filename("Videos/see_cam.mjpeg")
