@@ -127,7 +127,7 @@ class AsyncFrameWriter:
         for worker in self.workers:
             worker.join()
 
-def stamp_video():
+def stamp_video(display=False):
     # Initialize video captures
     camera0 = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
     camera1 = cv2.VideoCapture(2, apiPreference=cv2.CAP_V4L2)
@@ -168,7 +168,7 @@ def stamp_video():
     frame_writer0 = AsyncFrameWriter(output_dir="Images/cam0")
     frame_writer1 = AsyncFrameWriter(output_dir="Images/cam1")
 
-    display = True
+    
     
     frame_idx = 0
     try:
