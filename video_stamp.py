@@ -222,7 +222,7 @@ def stamp_video(display=False):
             subprocess.run([
                 'ffmpeg', '-y', '-framerate', str(processor0.fps),
                 '-i', f'Images/cam{cam_id}/opencv%d.jpg',
-                '-c:v', 'mjpeg',
-                f'output_cam{cam_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.mjpeg'
+                '-c:v', 'avi',
+                f'output_cam{cam_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.avi'
             ])
 
