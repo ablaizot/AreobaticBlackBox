@@ -167,6 +167,8 @@ def stamp_video():
     # Initialize async frame writers
     frame_writer0 = AsyncFrameWriter(output_dir="Images/cam0")
     frame_writer1 = AsyncFrameWriter(output_dir="Images/cam1")
+
+    diplay = True
     
     frame_idx = 0
     try:
@@ -188,8 +190,14 @@ def stamp_video():
                 processed_frame0, _ = pending0.popleft().get()
                 processed_frame1, _ = pending1.popleft().get()
                 
-                cv2.imshow('camera0', processed_frame0)
-                cv2.imshow('camera1', processed_frame1)
+                try:
+                    if display:
+                        cv2.imshow('camera0', processed_frame0)
+                        cv2.imshow('camera1', processed_frame1)
+                except cv2.error as e:
+                    display = False
+                    print(f"Error displaying frames: {e}")
+
                 
                 frame_writer0.write_frame(processed_frame0, frame_idx)
                 frame_writer1.write_frame(processed_frame1, frame_idx)
