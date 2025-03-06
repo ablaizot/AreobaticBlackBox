@@ -168,7 +168,7 @@ def stamp_video():
     frame_writer0 = AsyncFrameWriter(output_dir="Images/cam0")
     frame_writer1 = AsyncFrameWriter(output_dir="Images/cam1")
 
-    diplay = True
+    display = True
     
     frame_idx = 0
     try:
