@@ -62,7 +62,7 @@ def gps_logger():
         print(f"Error accessing GPS device: {e}")
 
 def main():
-    p1 = Process(target=video_stamp)
+    p1 = Process(target=stamp_video)
     p3 = Process(target=mavproxy)
     p4 = Process(target=gps_logger)
 

@@ -127,7 +127,7 @@ class AsyncFrameWriter:
         for worker in self.workers:
             worker.join()
 
-def video_stamp():
+def stamp_video():
     # Initialize video captures
     camera0 = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
     camera1 = cv2.VideoCapture(2, apiPreference=cv2.CAP_V4L2)
