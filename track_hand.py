@@ -5,6 +5,7 @@ import time
 import csv
 import matplotlib.pyplot as plt
 from datetime import timedelta
+import os
 
 # Initialize MediaPipe Hands
 mp_hands = mp.solutions.hands
@@ -136,9 +137,28 @@ def plot_grip_movements(grip_data):
     # Show the plot
     plt.show()
 
+def get_incremented_filename(base_filepath):
+    """Generate a filename that doesn't override existing files by adding a counter."""
+    if not os.path.exists(base_filepath):
+        return base_filepath
+    
+    directory, filename = os.path.split(base_filepath)
+    name, extension = os.path.splitext(filename)
+    counter = 1
+    
+    while True:
+        new_filename = f"{name}_{counter}{extension}"
+        new_filepath = os.path.join(directory, new_filename)
+        if not os.path.exists(new_filepath):
+            return new_filepath
+        counter += 1
+
 def main():
+    # Create videos directory if it doesn't exist
+    os.makedirs('videos', exist_ok=True)
+    
     # For video file input
-    cap = cv2.VideoCapture('videos/see_cam_hands.mp4')  # Replace with your video file
+    cap = cv2.VideoCapture('videos/see_cam_hands_7.mp4')  # Replace with your video file
     
     # Get video properties
     fps = int(cap.get(cv2.CAP_PROP_FPS))
@@ -147,8 +167,8 @@ def main():
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
     # Calculate frame positions for 16:00 and 25:00
-    start_time = 16 * 60  # 16 minutes in seconds
-    end_time = 25 * 60    # 25 minutes in seconds
+    start_time = 0 * 60  # 16 minutes in seconds
+    end_time = 16 * 60    # 25 minutes in seconds
     
     start_frame = int(start_time * fps)
     end_frame = int(end_time * fps)
@@ -162,21 +182,27 @@ def main():
     cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
     current_frame = start_frame
     
+    # Get incremented filenames for outputs
+    video_output_path = get_incremented_filename('videos/tracked_output.mp4')
+    csv_output_path = get_incremented_filename('videos/grip_positions.csv')
+    plot_output_path = get_incremented_filename('videos/grip_movement_analysis.png')
+    
     # Optional: save the processed video
-    out = cv2.VideoWriter('videos/tracked_output.mp4', 
+    out = cv2.VideoWriter(video_output_path, 
                          cv2.VideoWriter_fourcc(*'mp4v'), 
                          fps, (width, height))
+    
+    print(f"Video will be saved to: {video_output_path}")
     
     # Track coordinates over time for analysis
     grip_positions = []
     
     # CSV file for grip position data
-    csv_file = open('grip_positions.csv', 'w', newline='')
+    csv_file = open(csv_output_path, 'w', newline='')
     csv_writer = csv.writer(csv_file)
     csv_writer.writerow(['Timestamp', 'Time_Seconds', 'X_Position', 'Y_Position'])
 
-    #print writing to grip positions.csv
-    print("Writing grip positions to 'grip_positions.csv'")
+    print(f"Writing grip positions to: {csv_output_path}")
     
     print(f"Processing frames from {start_time/60:.1f}:00 to {end_time/60:.1f}:00")
     print(f"Frame range: {start_frame} to {end_frame}")

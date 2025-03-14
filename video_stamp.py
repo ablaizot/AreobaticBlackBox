@@ -9,6 +9,8 @@ from multiprocessing.pool import ThreadPool
 from collections import deque
 from queue import Queue
 from threading import Thread
+import piexif
+from fractions import Fraction
 
 class VideoProcessor:
     def __init__(self, width=1280, height=720, fps=30):
@@ -58,7 +60,7 @@ class VideoProcessor:
         for text, pos, color in texts:
             cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
         
-        return frame, t0
+        return frame, t0, (gps_time, latitude, longitude)
 
     @staticmethod
     def parse_gngll(gngll_sentence):
@@ -111,13 +113,81 @@ class AsyncFrameWriter:
             frame_data = self.queue.get()
             if frame_data is None:
                 break
-            frame, idx = frame_data
-            cv2.imwrite(f'{self.output_dir}/opencv{str(idx)}.jpg', frame)
-            print(f"Queue size {self.queue.qsize()}\n" )
+            frame, idx, gps_data = frame_data  # Updated to receive GPS data
+            
+            # Save the image first
+            image_path = f'{self.output_dir}/opencv{str(idx)}.jpg'
+            cv2.imwrite(image_path, frame)
+            
+            # If GPS coordinates are available, add them as EXIF metadata
+            if gps_data and gps_data[1] and gps_data[2]:  # Check if we have valid lat/lon
+                try:
+                    self._add_gps_tags(image_path, gps_data[1], gps_data[2])
+                except Exception as e:
+                    print(f"Error adding GPS tags: {e}")
+            
+            print(f"Queue size {self.queue.qsize()}\n")
             self.queue.task_done()
-    
-    def write_frame(self, frame, idx):
-        self.queue.put((frame, idx))
+
+    def _add_gps_tags(self, image_path, latitude_str, longitude_str):
+        """Add GPS EXIF metadata to an image"""
+        # Parse latitude and longitude strings into decimal values
+        try:
+            # Example format: "3724.7669 N" -> 37.412782 (decimal degrees)
+            # First we need to parse our NMEA format to decimal degrees
+            lat_parts = latitude_str.split()
+            if len(lat_parts) == 2:
+                lat_value = float(lat_parts[0])
+                lat_deg = int(lat_value / 100)
+                lat_min = lat_value - (lat_deg * 100)
+                latitude = lat_deg + (lat_min / 60)
+                if lat_parts[1] == 'S':
+                    latitude = -latitude
+                    
+            lon_parts = longitude_str.split()
+            if len(lon_parts) == 2:
+                lon_value = float(lon_parts[0])
+                lon_deg = int(lon_value / 100)
+                lon_min = lon_value - (lon_deg * 100)
+                longitude = lon_deg + (lon_min / 60)
+                if lon_parts[1] == 'W':
+                    longitude = -longitude
+            
+            # Convert to EXIF format (degrees, minutes, seconds as rationals)
+            def to_deg(value, loc):
+                """Convert decimal coordinates to degrees, minutes, seconds"""
+                if value < 0:
+                    loc_value = loc[0]
+                else:
+                    loc_value = loc[1]
+                
+                abs_value = abs(value)
+                deg = int(abs_value)
+                min = int((abs_value - deg) * 60)
+                sec = int(((abs_value - deg) * 60 - min) * 60 * 100)
+                
+                return deg, min, sec, loc_value
+            
+            lat_deg, lat_min, lat_sec, lat_ref = to_deg(latitude, ["S", "N"])
+            lon_deg, lon_min, lon_sec, lon_ref = to_deg(longitude, ["W", "E"])
+            
+            # Create Exif dictionary
+            exif_dict = {"GPS": {
+                piexif.GPSIFD.GPSLatitudeRef: lat_ref,
+                piexif.GPSIFD.GPSLatitude: [(lat_deg, 1), (lat_min, 1), (lat_sec, 100)],
+                piexif.GPSIFD.GPSLongitudeRef: lon_ref,
+                piexif.GPSIFD.GPSLongitude: [(lon_deg, 1), (lon_min, 1), (lon_sec, 100)]
+            }}
+            
+            # Insert the Exif tags
+            exif_bytes = piexif.dump(exif_dict)
+            piexif.insert(exif_bytes, image_path)
+            print(f"Added GPS tags to image: {image_path}")
+        except Exception as e:
+            print(f"Error parsing GPS coordinates: {e}")
+
+    def write_frame(self, frame, idx, gps_data=None):
+        self.queue.put((frame, idx, gps_data))
     
     def stop(self):
         # Send stop signal to all workers
@@ -187,8 +257,8 @@ def stamp_video(display=False):
 
             # Get processed frames from both cameras
             while pending0 and pending0[0].ready() and pending1 and pending1[0].ready():
-                processed_frame0, _ = pending0.popleft().get()
-                processed_frame1, _ = pending1.popleft().get()
+                processed_frame0, _, gps_data0 = pending0.popleft().get()
+                processed_frame1, _, gps_data1 = pending1.popleft().get()
                 
                 try:
                     if display:
@@ -199,8 +269,8 @@ def stamp_video(display=False):
                     print(f"Error displaying frames: {e}")
 
                 
-                frame_writer0.write_frame(processed_frame0, frame_idx)
-                frame_writer1.write_frame(processed_frame1, frame_idx)
+                frame_writer0.write_frame(processed_frame0, frame_idx, gps_data0)
+                frame_writer1.write_frame(processed_frame1, frame_idx, gps_data1)
                 frame_idx += 1
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -225,4 +295,5 @@ def stamp_video(display=False):
                 '-c:v', 'avi',
                 f'output_cam{cam_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.avi'
             ])
+
 
