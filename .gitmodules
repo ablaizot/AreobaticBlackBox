@@ -1,3 +1,6 @@
 [submodule "Dial-Detection"]
 	path = Dial-Detection
 	url = git@github.com:sk4123/Dial-Detection.git
+[submodule "gaugereader"]
+	path = gaugereader
+	url = git@github.com:sk4123/gaugereader.git
