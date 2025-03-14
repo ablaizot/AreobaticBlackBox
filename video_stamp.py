@@ -91,7 +91,7 @@ class VideoProcessor:
         print(f"Reading from {latest_file}")
         with open(latest_file, 'r') as file:
             for line in file:
-                if line.startswith('$GNGLL'):
+                if line.startswith('$GNGLL') or line.startswith('$GNRMC') or line.startswith('$GNGGA'):
                     latest_gngll = line.strip()
         print(f"Latest GNGLL: {latest_gngll}")
         return latest_gngll
@@ -122,17 +122,21 @@ class AsyncFrameWriter:
             # If GPS coordinates are available, add them as EXIF metadata
             if gps_data and gps_data[1] and gps_data[2]:  # Check if we have valid lat/lon
                 try:
-                    self._add_gps_tags(image_path, gps_data[1], gps_data[2])
+                    self._add_gps_tags(image_path, gps_data[1], gps_data[2], idx)
                 except Exception as e:
                     print(f"Error adding GPS tags: {e}")
             
             print(f"Queue size {self.queue.qsize()}\n")
             self.queue.task_done()
 
-    def _add_gps_tags(self, image_path, latitude_str, longitude_str):
+    def _add_gps_tags(self, image_path, latitude_str, longitude_str, frame_idx=None):
         """Add GPS EXIF metadata to an image"""
         # Parse latitude and longitude strings into decimal values
         try:
+            # Initialize variables with default values
+            latitude = 0.0
+            longitude = 0.0
+            
             # Example format: "3724.7669 N" -> 37.412782 (decimal degrees)
             # First we need to parse our NMEA format to decimal degrees
             lat_parts = latitude_str.split()
@@ -179,10 +183,19 @@ class AsyncFrameWriter:
                 piexif.GPSIFD.GPSLongitude: [(lon_deg, 1), (lon_min, 1), (lon_sec, 100)]
             }}
             
+            # Add frame number to EXIF data
+            if frame_idx is not None:
+                # Add to 0th IFD (main image information)
+                if "0th" not in exif_dict:
+                    exif_dict["0th"] = {}
+                    
+                # Store frame number in ImageDescription
+                exif_dict["0th"][piexif.ImageIFD.ImageDescription] = f"Frame {frame_idx}"
+            
             # Insert the Exif tags
             exif_bytes = piexif.dump(exif_dict)
             piexif.insert(exif_bytes, image_path)
-            print(f"Added GPS tags to image: {image_path}")
+            print(f"Added GPS tags and frame number to image: {image_path}")
         except Exception as e:
             print(f"Error parsing GPS coordinates: {e}")
 
