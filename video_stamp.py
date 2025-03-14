@@ -81,6 +81,36 @@ class VideoProcessor:
         return "No Time", "No Lat", "No Lon"
 
     @staticmethod
+    def parse_gngga(gngga_sentence):
+        """Parse UTC time and coordinates from GNGGA sentence"""
+        try:
+            parts = gngga_sentence.split(',')
+            if len(parts) >= 10:  # GNGGA has at least 14 fields + checksum
+                # Get time
+                time_str = parts[1]
+                hours = int(time_str[0:2])
+                minutes = int(time_str[2:4])
+                seconds = int(float(time_str[4:]))
+                gps_time = f"{hours}:{minutes}:{seconds}"
+                
+                # Get latitude
+                latitude = parts[2] + ' ' + parts[3]
+                
+                # Get longitude
+                longitude = parts[4] + ' ' + parts[5]
+                
+                # Additional data you might want to use
+                fix_quality = parts[6]  # 0=invalid, 1=GPS fix, 2=DGPS fix
+                num_satellites = parts[7]
+                altitude = parts[9] + ' ' + parts[10]  # e.g., "30.6 M"
+                
+                return gps_time, latitude, longitude
+        except (IndexError, ValueError) as e:
+            print(f"Error parsing GNGGA: {e}")
+            return "Time Error", "Lat Error", "Lon Error"
+        return "No Time", "No Lat", "No Lon"
+
+    @staticmethod
     def get_latest_gngll_sentence(directory):
         """Read the latest GNGLL sentence from a file"""
         list_of_files = glob.glob(os.path.join(directory, '*.log'))
@@ -95,6 +125,24 @@ class VideoProcessor:
                     latest_gngll = line.strip()
         print(f"Latest GNGLL: {latest_gngll}")
         return latest_gngll
+
+    @staticmethod
+    def get_latest_gps_sentence(directory):
+        """Read the latest GPS sentence from a file"""
+        list_of_files = glob.glob(os.path.join(directory, '*.log'))
+        if not list_of_files:
+            return None
+        latest_file = max(list_of_files, key=os.path.getmtime)
+        latest_gps = None
+        print(f"Reading from {latest_file}")
+        with open(latest_file, 'r') as file:
+            for line in file:
+                if line.startswith('$GNGGA'):
+                    latest_gps = line.strip()
+                elif line.startswith('$GNGLL') and not latest_gps:
+                    latest_gps = line.strip()
+        print(f"Latest GPS: {latest_gps}")
+        return latest_gps
 
 class AsyncFrameWriter:
     def __init__(self, output_dir="Images", num_workers=4):
