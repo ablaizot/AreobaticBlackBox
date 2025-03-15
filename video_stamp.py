@@ -23,7 +23,7 @@ class VideoProcessor:
     def process_frame(self, frame, t0):
         """Process a single frame with GPS and timestamp overlay"""
         # Get the latest GNGLL sentence from the file
-        gngll_sentence = self.get_latest_gngll_sentence('gps_logs')
+        gngll_sentence = self.get_latest_gps_sentence('gps_logs')
         gps_time = ''
         latitude = ''
         longitude = ''
@@ -88,10 +88,12 @@ class VideoProcessor:
             if len(parts) >= 10:  # GNGGA has at least 14 fields + checksum
                 # Get time
                 time_str = parts[1]
+                print(f"Time string: {time_str}")
                 hours = int(time_str[0:2])
                 minutes = int(time_str[2:4])
                 seconds = int(float(time_str[4:]))
                 gps_time = f"{hours}:{minutes}:{seconds}"
+                print(f"Parsed GPS time: {gps_time}")
                 
                 # Get latitude
                 latitude = parts[2] + ' ' + parts[3]
