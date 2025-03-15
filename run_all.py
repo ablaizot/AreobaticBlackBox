@@ -64,13 +64,9 @@ def gps_logger():
 def main():
     p1 = Process(target=stamp_video)
     p3 = Process(target=mavproxy)
-    p2 = Process(target=see_cam)
     p4 = Process(target=gps_logger)
-    p5 = Process(target=web_cam)
-    p5.start()
 
-    #p1.start()
-    p2.start()
+    p1.start()
     p3.start()
     p4.start()
 
