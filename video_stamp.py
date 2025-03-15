@@ -34,7 +34,7 @@ class VideoProcessor:
         
         # Get current date and combine with GPS time
         current_date = datetime.now().strftime("%Y-%m-%d")
-        if not gps_time:
+        if not gps_time or gps_time == "Time Error":
             gps_time = datetime.now().strftime("%H:%M:%S.%f")[:-4]
         timestamp = f"{current_date} {gps_time}"
         
