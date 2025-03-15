@@ -339,7 +339,7 @@ def stamp_video(display=False):
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
-            if frame_idx >= 1000:
+            if frame_idx >= 100000:
                 break
 
     finally:
