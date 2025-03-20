@@ -24,57 +24,75 @@ def track_hand_on_stick(image, results):
     h, w, c = image.shape
     
     # Define bottom left quadrant boundaries
-    left_boundary = w // 2
-    bottom_boundary = h // 2
+    left_boundary = 3*w // 4
+    bottom_boundary = 1 * h // 4
     
     # Initialize grip coordinates as None
     grip_coords = None
     
+    # Find the hand closest to the bottom of the image
+    bottom_most_hand = None
+    bottom_most_y = 0
+    
     if results.multi_hand_landmarks:
-        for hand_landmarks in results.multi_hand_landmarks:
+        # First pass: find the bottom-most hand in the tracking zone
+        for i, hand_landmarks in enumerate(results.multi_hand_landmarks):
             # Get coordinates of wrist (base of hand, landmark 0) as reference point
             wrist = hand_landmarks.landmark[0]
             wrist_x, wrist_y = int(wrist.x * w), int(wrist.y * h)
             
             # Check if hand is in bottom left quadrant
             if wrist_x < left_boundary and wrist_y > bottom_boundary:
-                # Draw all landmarks
-                mp_drawing.draw_landmarks(
-                    annotated_image,
-                    hand_landmarks,
-                    mp_hands.HAND_CONNECTIONS,
-                    mp_drawing_styles.get_default_hand_landmarks_style(),
-                    mp_drawing_styles.get_default_hand_connections_style())
-                
-                # Get coordinates of index fingertip (landmark 8)
-                index_tip = hand_landmarks.landmark[8]
-                cx, cy = int(index_tip.x * w), int(index_tip.y * h)
-                
-                # Draw circle at fingertip
-                cv2.circle(annotated_image, (cx, cy), 15, (0, 255, 0), cv2.FILLED)
-                
-                # Get coordinates of thumb tip (landmark 4)
-                thumb_tip = hand_landmarks.landmark[4]
-                tx, ty = int(thumb_tip.x * w), int(thumb_tip.y * h)
-                
-                # Draw circle at thumb tip
-                cv2.circle(annotated_image, (tx, ty), 15, (255, 0, 0), cv2.FILLED)
-                
-                # Draw line between index and thumb (representing grip)
-                cv2.line(annotated_image, (cx, cy), (tx, ty), (255, 255, 0), 3)
-                
-                # Calculate grip center (midpoint between index and thumb)
-                grip_x, grip_y = (cx + tx) // 2, (cy + ty) // 2
-                cv2.circle(annotated_image, (grip_x, grip_y), 10, (0, 0, 255), cv2.FILLED)
-                
-                # Save grip coordinates for CSV
-                grip_coords = (grip_x, grip_y)
-                
-                # Display coordinates
-                cv2.putText(annotated_image, f"Grip: ({grip_x}, {grip_y})", 
-                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                # If this hand is lower (larger y value) than current bottom-most hand
+                if wrist_y > bottom_most_y:
+                    bottom_most_y = wrist_y
+                    bottom_most_hand = i
+        
+        # Second pass: only process the bottom-most hand
+        if bottom_most_hand is not None:
+            hand_landmarks = results.multi_hand_landmarks[bottom_most_hand]
             
-    # Draw quadrant boundary lines (optional)
+            # Draw all landmarks
+            mp_drawing.draw_landmarks(
+                annotated_image,
+                hand_landmarks,
+                mp_hands.HAND_CONNECTIONS,
+                mp_drawing_styles.get_default_hand_landmarks_style(),
+                mp_drawing_styles.get_default_hand_connections_style())
+            
+            # Get coordinates of index fingertip (landmark 8)
+            index_tip = hand_landmarks.landmark[8]
+            cx, cy = int(index_tip.x * w), int(index_tip.y * h)
+            
+            # Draw circle at fingertip
+            cv2.circle(annotated_image, (cx, cy), 15, (0, 255, 0), cv2.FILLED)
+            
+            # Get coordinates of thumb tip (landmark 4)
+            thumb_tip = hand_landmarks.landmark[4]
+            tx, ty = int(thumb_tip.x * w), int(thumb_tip.y * h)
+            
+            # Draw circle at thumb tip
+            cv2.circle(annotated_image, (tx, ty), 15, (255, 0, 0), cv2.FILLED)
+            
+            # Draw line between index and thumb (representing grip)
+            cv2.line(annotated_image, (cx, cy), (tx, ty), (255, 255, 0), 3)
+            
+            # Calculate grip center (midpoint between index and thumb)
+            grip_x, grip_y = (cx + tx) // 2, (cy + ty) // 2
+            cv2.circle(annotated_image, (grip_x, grip_y), 10, (0, 0, 255), cv2.FILLED)
+            
+            # Save grip coordinates for CSV
+            grip_coords = (grip_x, grip_y)
+            
+            # Display coordinates
+            cv2.putText(annotated_image, f"Grip: ({grip_x}, {grip_y})", 
+                       (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            
+            # Indicate that this is the bottom-most hand
+            cv2.putText(annotated_image, "Bottom Hand", (grip_x, grip_y - 20), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+    
+    # Draw quadrant boundary lines
     cv2.line(annotated_image, (left_boundary, 0), (left_boundary, h), (128, 128, 128), 1)
     cv2.line(annotated_image, (0, bottom_boundary), (w, bottom_boundary), (128, 128, 128), 1)
     
@@ -158,7 +176,7 @@ def main():
     os.makedirs('videos', exist_ok=True)
     
     # For video file input
-    cap = cv2.VideoCapture('videos/see_cam_hands_7.mp4')  # Replace with your video file
+    cap = cv2.VideoCapture('videos/demo_hand_1.mp4')  # Replace with your video file
     
     # Get video properties
     fps = int(cap.get(cv2.CAP_PROP_FPS))
@@ -179,7 +197,7 @@ def main():
         print(f"Warning: Video is shorter than 25:00. Will process until the end.")
     
     # Set the frame position to start_frame
-    cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)   
     current_frame = start_frame
     
     # Get incremented filenames for outputs
