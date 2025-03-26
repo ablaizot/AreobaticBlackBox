@@ -59,7 +59,8 @@ def gps_logger():
         out = subprocess.run(gps_test_cmd, shell=True)
 
         #check if out is empty
-        if out.stdout == None:
+        if out.stdout == None or out.stdout == "":
+            print("Trying other GPS port")
             device = "/dev/ttyACM0"
         
         gps_logger_cmd = f"nohup cat {device} > {output_file} &"

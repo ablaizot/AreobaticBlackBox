@@ -292,12 +292,14 @@ def stamp_video(display=False):
     pending1 = deque()
     # Create output directories with date and timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    os.makedirs(f"Images/cam0_{timestamp}", exist_ok=True)
-    os.makedirs(f"Images/cam1_{timestamp}", exist_ok=True)
+    output_dir0 = f"Images/cam0_{timestamp}"
+    output_dir1 = f"Images/cam1_{timestamp}"
+    os.makedirs(output_dir0, exist_ok=True)
+    os.makedirs(output_dir1, exist_ok=True)
 
     # Initialize async frame writers
-    frame_writer0 = AsyncFrameWriter(output_dir="Images/cam0")
-    frame_writer1 = AsyncFrameWriter(output_dir="Images/cam1")
+    frame_writer0 = AsyncFrameWriter(output_dir=output_dir0)
+    frame_writer1 = AsyncFrameWriter(output_dir=output_dir1)
 
     
     
