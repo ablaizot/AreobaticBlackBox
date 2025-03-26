@@ -77,6 +77,7 @@ class VideoProcessor:
                 longitude = parts[3] + ' ' + parts[4]
                 return gps_time, latitude, longitude
         except (IndexError, ValueError):
+            print(f"Error parsing GNGLL")
             return "Time Error", "Lat Error", "Lon Error"
         return "No Time", "No Lat", "No Lon"
 
@@ -286,17 +287,11 @@ def stamp_video(display=False):
     pool = ThreadPool(processes=threadn)
     pending0 = deque()
     pending1 = deque()
-    
-    # Create output directories
-    os.makedirs("Images/cam0", exist_ok=True)
-    os.makedirs("Images/cam1", exist_ok=True)
-    
-    # Clear images in the directories
-    for dir in ['Images/cam0/*', 'Images/cam1/*']:
-        files = glob.glob(dir)
-        for f in files: 
-            os.remove(f)
-    
+    # Create output directories with date and timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.makedirs(f"Images/cam0_{timestamp}", exist_ok=True)
+    os.makedirs(f"Images/cam1_{timestamp}", exist_ok=True)
+
     # Initialize async frame writers
     frame_writer0 = AsyncFrameWriter(output_dir="Images/cam0")
     frame_writer1 = AsyncFrameWriter(output_dir="Images/cam1")

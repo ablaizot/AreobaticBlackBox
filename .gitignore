@@ -2,7 +2,8 @@ gcc-arm-none-eabi-10-2020-q4-major-win32.exe
 install-prereqs-windows.ps1
 MAVProxySetup-latest.exe
 see_cam.mjpeg
-see_output_1.mp4
+*.mp4
+*.avi
 10_20_24/see_cam_10.mjpeg
 Alex_ride_11_3_24/00000046.BIN
 Alex_ride_11_3_24/00000046.log
@@ -84,3 +85,6 @@ F1_GPS_Sample_Period.png
 Acc_F1_IMU_2.jpg
 GPS_STATUS_F1_17.png
 GPS_STATUS_F2_17.png
+*.csv
+ardupilog.asv
+*.jpg
