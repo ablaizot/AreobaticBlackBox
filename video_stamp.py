@@ -23,12 +23,15 @@ class VideoProcessor:
     def process_frame(self, frame, t0):
         """Process a single frame with GPS and timestamp overlay"""
         # Get the latest GNGLL sentence from the file
-        gngll_sentence = self.get_latest_gps_sentence('gps_logs')
+        sentence = self.get_latest_gps_sentence('gps_logs')
         gps_time = ''
         latitude = ''
         longitude = ''
-        if gngll_sentence:
-            gps_time, latitude, longitude = self.parse_gngll(gngll_sentence)
+        if sentence:
+            if sentence.startswith('$GNGGA'):
+                gps_time, latitude, longitude = self.parse_gngga(sentence)
+            elif sentence.startswith('$GNGLL'):
+                gps_time, latitude, longitude = self.parse_gngll(sentence)
         else:
             latitude, longitude = "No Lat", "No Lon"
         
