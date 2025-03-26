@@ -48,12 +48,20 @@ def gps_logger():
     if not os.path.exists(device):
         print("No GPS device found")
         return
-        
+    
+    
     try:
         # Try to open the device to verify it's accessible
         with open(device, 'r') as f:
             print(f"GPS device found at {device}")
-            
+        gps_test_cmd = f"cat {device}"
+        print(gps_test_cmd)
+        out = subprocess.run(gps_test_cmd, shell=True)
+
+        #check if out is empty
+        if out == "":
+            device = "/dev/ttyACM0"
+        
         gps_logger_cmd = f"nohup cat {device} > {output_file} &"
         print(gps_logger_cmd)
         subprocess.run(gps_logger_cmd, shell=True)
