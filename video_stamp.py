@@ -349,14 +349,5 @@ def stamp_video(display=False):
         cv2.destroyAllWindows()
         frame_writer0.stop()
         frame_writer1.stop()
-        
-        # Convert frames to video using ffmpeg for both cameras
-        for cam_id in [0, 1]:
-            subprocess.run([
-                'ffmpeg', '-y', '-framerate', str(processor0.fps),
-                '-i', f'Images/cam{cam_id}/opencv%d.jpg',
-                '-c:v', 'avi',
-                f'output_cam{cam_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.avi'
-            ])
 
 
