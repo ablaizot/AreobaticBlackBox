@@ -7,18 +7,32 @@ Red is 5V, Black is GND, Blue is TX and Yellow is RX.
 
 Connect the GPS to the raspberry PI wil the microUSB cable. Connect the raspberry PI to the Pixhawk with the microUSB cable.
 
-Make sure you are on a network other than eduroam, and remotely access the raspberry PI. You can also use an ethernet cable.
+Make sure you are on a network other than eduroam, and remotely access the raspberry PI. You can also use an ethernet cable. 
 ```
 ssh coolhippo159@hostname
 ```
+To connect over wifi. Run `ifconfig wlan0` to find the IP address on the wifi network and replace the hostname with the IP address in the above command to connect to it wirelessly. The command `dmesg` is also useful for seeing the GPS and Pixhawk are connected to the raspberry PI.
 
 Start all of the processes with:
 ```
-nohup python3 run_all.py ; python3 run_all.py & > nohup.out.log
+nohup python3 run_all.py ; python3 run_all.py & 
 
 ```
 
-Make sure the process is running by going to the gps_logs folder and opening the log with the largest number. Additionally, go the mav_logs folder and make sure the tlog size is increasing by running ls -lh multiple times. Lastly, go the the Images folder and check that the folder with the latest date and time is filling up with images.
+Make sure the process is running by going to the gps_logs folder and opening the log with the largest number. Additionally, go the mav_logs folder and make sure the tlog size is increasing by running ls -lh multiple times. Lastly, go the the Images folder and check that the folder with the latest date and time is filling up with images. Use `ls -lh` in the Images folder to check the sizes of the folders.
+
+You can also monitor the output log with 
+```
+tail -f nohup.out
+```
+<p align="center">
+<img src="./readme_im/nohup.png" width="50%">
+</p>
+<p align="center">
+Nominal nohup output log
+</p>
+
+
 
 ## Cameras
 The python script run_all.py starts two UVC cameras and records the output in the Images folder. They are both recording at 1920x1080 and around 20 fps. The script increments the foldername for every new recording. The fps, time, and gps coordinates are written the the frame.
