@@ -32,6 +32,7 @@ tail -f nohup.out
 Nominal nohup output log
 </p>
 
+You can also open up mission planner on your computer and connect over UDP with the default port of 14550. Make sure that your computer is the one that ran `run_all.py` or else it won't forward the information to the right computer.
 
 
 ## Cameras
