@@ -28,11 +28,22 @@ def web_cam():
 
 def mavproxy():
     folder_name = increment_filename("mav_logs")
-    remote_ip = os.getenv("SSH_CONNECTION")
-    subprocess.run(f"mkdir {folder_name}", shell=True)
+    
+    # Get the remote IP address from SSH_CONNECTION
+    ssh_connection = os.getenv("SSH_CONNECTION", "")
+    if ssh_connection:
+        # SSH_CONNECTION format: "<client_ip> <client_port> <server_ip> <server_port>"
+        remote_ip = ssh_connection.split()[0]  # Get first element (client IP)
+        print(f"Detected remote IP: {remote_ip}")
+    else:
+        # Fallback to a default IP if SSH_CONNECTION is not available
+        remote_ip = "127.0.0.1"
+        print(f"SSH_CONNECTION not found, using default IP: {remote_ip}")
+
+    subprocess.run(f"mkdir -p {folder_name}", shell=True)
     output_file = increment_filename(f"{folder_name}/mavproxy.log")
     mission = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    mavproxy_cmd = f"nohup mavproxy.py  --out {remote_ip}:14550 --non-interactive --baudrate=912000 --mission={mission} --state-basedir={folder_name} > {output_file} &"
+    mavproxy_cmd = f"nohup mavproxy.py --out {remote_ip}:14550 --non-interactive --baudrate=912000 --mission={mission} --state-basedir={folder_name} > {output_file} &"
     print(mavproxy_cmd)
     subprocess.run(mavproxy_cmd, shell=True)
 
