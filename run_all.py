@@ -67,17 +67,22 @@ def gps_logger():
         # Try to open the device to verify it's accessible
         with open(device, 'r') as f:
             print(f"GPS device found at {device}")
-        gps_test_cmd = f"cat {device}"
+        gps_test_cmd = f"cat {device} > gps_test.log"
         print(gps_test_cmd)
         out = subprocess.Popen(gps_test_cmd, shell=True, stdin=subprocess.PIPE)
         time.sleep(1)
         out.terminate()  # Terminate the process after 1 second
         out.wait(2)
         out.kill()  # Ensure the process is killed
-        #check if out is empty
-        if out.stdout == None or out.stdout == "":
-            print("Trying other GPS port")
-            device = "/dev/ttyACM0"
+        #check if gps_test.log is empty
+        with open("gps_test.log", 'r') as f:
+            gps_test_output = f.read()
+            if gps_test_output == None or gps_test_output == "":
+                print("GPS test output is empty, trying other GPS port")
+                device = "/dev/ttyACM0"
+        # if out.stdout == None or out.stdout == "":
+        #     print("Trying other GPS port")
+        #     device = "/dev/ttyACM0"
         
         gps_logger_cmd = f"nohup cat {device} > {output_file} &"
         print(gps_logger_cmd)
