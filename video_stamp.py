@@ -35,11 +35,18 @@ class VideoProcessor:
         else:
             latitude, longitude = "No Lat", "No Lon"
         
-        # Get current date and combine with GPS time
-        current_date = datetime.now().strftime("%Y-%m-%d")
+        # Get current date and system time with milliseconds
+        current_datetime = datetime.now()
+        current_date = current_datetime.strftime("%Y-%m-%d")
+        system_time = current_datetime.strftime("%H:%M:%S.%f")[:-3]  # Keep milliseconds
+        
+        # Use GPS time if available, otherwise fallback to system time
         if not gps_time or gps_time == "Time Error":
-            gps_time = datetime.now().strftime("%H:%M:%S.%f")[:-4]
-        timestamp = f"{current_date} {gps_time}"
+            gps_time = system_time
+        
+        # Create timestamps
+        gps_timestamp = f"{current_date} {gps_time}"
+        sys_timestamp = f"{current_date} {system_time}"
         
         # Calculate display metrics
         self.frame_count += 1
@@ -48,22 +55,22 @@ class VideoProcessor:
         # Add text overlays
         texts = [
             (f"Frame {self.frame_count}", (10, 15), (0, 0, 255)),
-            (f"Time: {timestamp}", (10, 40), (0, 255, 0)),
-            (f"Lat: {latitude} Lon: {longitude}", (10, 65), (255, 0, 0)),
-            (f"FPS: {self.frame_count / (time.time() - self.start_time):.2f}", (10, 90), (255, 255, 0))
+            (f"GPS Time: {gps_timestamp}", (10, 40), (0, 255, 0)),
+            (f"Sys Time: {sys_timestamp}", (10, 65), (0, 200, 200)),
+            (f"Lat: {latitude} Lon: {longitude}", (10, 90), (255, 0, 0)),
+            (f"FPS: {self.frame_count / (time.time() - self.start_time):.2f}", (10, 115), (255, 255, 0))
         ]
+        
         print(f"Frame {self.frame_count} processed in {time.time() - t0:.2f} seconds")
-        #print gps_time, latitude, longitude
-        print(f"Time: {timestamp}")
+        print(f"GPS Time: {gps_timestamp}")
+        print(f"Sys Time: {sys_timestamp}")
         print(f"Lat: {latitude} Lon: {longitude}")
-        #print FPS
         print(f"FPS: {self.frame_count / (time.time() - self.start_time):.2f}")
-
         
         for text, pos, color in texts:
             cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
         
-        return frame, t0, (gps_time, latitude, longitude)
+        return frame, t0, (gps_time, latitude, longitude), system_time
 
     @staticmethod
     def parse_gngll(gngll_sentence):
@@ -95,8 +102,14 @@ class VideoProcessor:
                 print(f"Time string: {time_str}")
                 hours = int(time_str[0:2])
                 minutes = int(time_str[2:4])
-                seconds = int(float(time_str[4:]))
-                gps_time = f"{hours}:{minutes}:{seconds}"
+                
+                # Handle milliseconds properly
+                sec_parts = time_str[4:].split('.')
+                seconds = int(sec_parts[0])
+                milliseconds = int(sec_parts[1][:3].ljust(3, '0')) if len(sec_parts) > 1 else 0
+                
+                # Format time with milliseconds
+                gps_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:03d}"
                 print(f"Parsed GPS time: {gps_time}")
                 
                 # Get latitude
@@ -167,7 +180,7 @@ class AsyncFrameWriter:
             frame_data = self.queue.get()
             if frame_data is None:
                 break
-            frame, idx, gps_data = frame_data  # Updated to receive GPS data
+            frame, idx, gps_data, system_time = frame_data  # Updated to receive system_time
             
             # Save the image first
             image_path = f'{self.output_dir}/opencv{str(idx)}.jpg'
@@ -176,14 +189,14 @@ class AsyncFrameWriter:
             # If GPS coordinates are available, add them as EXIF metadata
             if gps_data and gps_data[1] and gps_data[2]:  # Check if we have valid lat/lon
                 try:
-                    self._add_gps_tags(image_path, gps_data[1], gps_data[2], idx)
+                    self._add_gps_tags(image_path, gps_data[1], gps_data[2], idx, system_time)
                 except Exception as e:
                     print(f"Error adding GPS tags: {e}")
             
             print(f"Queue size {self.queue.qsize()}\n")
             self.queue.task_done()
 
-    def _add_gps_tags(self, image_path, latitude_str, longitude_str, frame_idx=None):
+    def _add_gps_tags(self, image_path, latitude_str, longitude_str, frame_idx=None, system_time=None):
         """Add GPS EXIF metadata to an image"""
         # Parse latitude and longitude strings into decimal values
         try:
@@ -246,6 +259,12 @@ class AsyncFrameWriter:
                 # Store frame number in ImageDescription
                 exif_dict["0th"][piexif.ImageIFD.ImageDescription] = f"Frame {frame_idx}"
             
+            # Add system timestamp to EXIF
+            if system_time:
+                if "0th" not in exif_dict:
+                    exif_dict["0th"] = {}
+                exif_dict["0th"][piexif.ImageIFD.DateTime] = system_time
+            
             # Insert the Exif tags
             exif_bytes = piexif.dump(exif_dict)
             piexif.insert(exif_bytes, image_path)
@@ -253,8 +272,8 @@ class AsyncFrameWriter:
         except Exception as e:
             print(f"Error parsing GPS coordinates: {e}")
 
-    def write_frame(self, frame, idx, gps_data=None):
-        self.queue.put((frame, idx, gps_data))
+    def write_frame(self, frame, idx, gps_data=None, system_time=None):
+        self.queue.put((frame, idx, gps_data, system_time))
     
     def stop(self):
         # Send stop signal to all workers
@@ -321,8 +340,8 @@ def stamp_video(display=False):
 
             # Get processed frames from both cameras
             while pending0 and pending0[0].ready() and pending1 and pending1[0].ready():
-                processed_frame0, _, gps_data0 = pending0.popleft().get()
-                processed_frame1, _, gps_data1 = pending1.popleft().get()
+                processed_frame0, _, gps_data0, system_time0 = pending0.popleft().get()
+                processed_frame1, _, gps_data1, system_time1 = pending1.popleft().get()
                 
                 try:
                     if display:
@@ -333,8 +352,8 @@ def stamp_video(display=False):
                     print(f"Error displaying frames: {e}")
 
                 
-                frame_writer0.write_frame(processed_frame0, frame_idx, gps_data0)
-                frame_writer1.write_frame(processed_frame1, frame_idx, gps_data1)
+                frame_writer0.write_frame(processed_frame0, frame_idx, gps_data0, system_time0)
+                frame_writer1.write_frame(processed_frame1, frame_idx, gps_data1, system_time1)
                 frame_idx += 1
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
