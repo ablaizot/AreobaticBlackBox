@@ -69,7 +69,7 @@ def gps_logger():
             print(f"GPS device found at {device}")
         gps_test_cmd = f"cat {device}"
         print(gps_test_cmd)
-        out = subprocess.Popen(gps_test_cmd, shell=True, timeout=5, stdin=subprocess.PIPE)
+        out = subprocess.Popen(gps_test_cmd, shell=True, stdin=subprocess.PIPE)
         time.sleep(1)
         out.terminate()  # Terminate the process after 1 second
         out.wait(2)
