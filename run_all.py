@@ -51,6 +51,10 @@ def mavproxy():
     subprocess.run(mavproxy_cmd, shell=True)
 
 def gps_logger():
+    """Log GPS data to a file"""
+    # Create the logs directory if it doesn't exist
+    os.makedirs("gps_logs", exist_ok=True)
+    
     # Try ttyACM1 first
     output_file = increment_filename("gps_logs/gps.log")
     device = "/dev/ttyACM1"
@@ -64,32 +68,60 @@ def gps_logger():
         print("No GPS device found")
         return
     
-    
     try:
         # Try to open the device to verify it's accessible
         with open(device, 'r') as f:
             print(f"GPS device found at {device}")
-        gps_test_cmd = f"cat {device} > gps_test.log"
-        print(gps_test_cmd)
-        out = subprocess.Popen(gps_test_cmd, shell=True, stdin=subprocess.PIPE)
-        time.sleep(1)
-        out.wait(2)
-        os.killpg(os.getpgid(out.pid), signal.SIGTERM)
-        #out.terminate()  # Terminate the process after 1 second
-        #out.kill()  # Ensure the process is killed
-        #check if gps_test.log is empty
-        with open("gps_test.log", 'r') as f:
-            gps_test_output = f.read()
-            if gps_test_output == None or gps_test_output == "":
-                print("GPS test output is empty, trying other GPS port")
-                device = "/dev/ttyACM0"
-        # if out.stdout == None or out.stdout == "":
-        #     print("Trying other GPS port")
-        #     device = "/dev/ttyACM0"
         
-        gps_logger_cmd = f"nohup cat {device} > {output_file} &"
+        # Test GPS device for NMEA sentences
+        print(f"Testing GPS on {device}...")
+        try:
+            # Use preexec_fn to create a new process group
+            gps_test_cmd = f"cat {device} > gps_test.log"
+            print(gps_test_cmd)
+            out = subprocess.Popen(gps_test_cmd, shell=True, 
+                                   stdin=subprocess.PIPE,
+                                   preexec_fn=os.setsid)
+            time.sleep(1)  # Wait to collect some data
+            
+            try:
+                # Try to terminate process group
+                os.killpg(os.getpgid(out.pid), signal.SIGTERM)
+                print("Test process terminated")
+            except (ProcessLookupError, OSError) as e:
+                print(f"Note: Process already terminated: {e}")
+            
+            # Check test output
+            if os.path.exists("gps_test.log"):
+                with open("gps_test.log", 'r') as f:
+                    gps_test_output = f.read()
+                    if not gps_test_output:
+                        print("GPS test output is empty, trying other GPS port")
+                        device = "/dev/ttyACM0"
+                        if not os.path.exists(device):
+                            print("No working GPS device found")
+                            return
+                    
+                    # Check for valid NMEA sentences
+                    if "GNGGA" not in gps_test_output and "GNRMC" not in gps_test_output:
+                        print("GPS test output does not contain valid NMEA sentences")
+                        device = "/dev/ttyACM0"
+                        if not os.path.exists(device):
+                            print("No working GPS device found")
+                            return
+            else:
+                print("GPS test log not created, using default device")
+        
+        except Exception as e:
+            print(f"GPS test failed: {e}")
+            # Continue anyway - the device exists, we'll try to use it
+        
+        # Start actual GPS logging
+        print(f"Starting GPS logger with device {device}")
+        gps_logger_cmd = f"mkdir -p gps_logs && nohup cat {device} > {output_file} &"
         print(gps_logger_cmd)
         subprocess.run(gps_logger_cmd, shell=True)
+        print(f"GPS logger started, writing to {output_file}")
         
     except (PermissionError, IOError) as e:
         print(f"Error accessing GPS device: {e}")
