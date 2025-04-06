@@ -2,6 +2,7 @@ import subprocess
 import os
 from multiprocess import Process
 import datetime
+import time
 from video_stamp import stamp_video
 
 def increment_filename(filepath):
@@ -68,8 +69,11 @@ def gps_logger():
             print(f"GPS device found at {device}")
         gps_test_cmd = f"cat {device}"
         print(gps_test_cmd)
-        out = subprocess.run(gps_test_cmd, shell=True, timeout=5)
-
+        out = subprocess.Popen(gps_test_cmd, shell=True, timeout=5, stdin=subprocess.PIPE)
+        time.sleep(1)
+        out.terminate()  # Terminate the process after 1 second
+        out.wait(2)
+        out.kill()  # Ensure the process is killed
         #check if out is empty
         if out.stdout == None or out.stdout == "":
             print("Trying other GPS port")
