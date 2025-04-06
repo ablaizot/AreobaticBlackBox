@@ -6,17 +6,19 @@ plot_gps(GPS_0)
 takeoff_F1 = 2069751136.00000;
 figure
 lat = POS(:,3);
-lon = POS(:,4);
-plot_IMU(IMU_0)
-plot_IMU(IMU_1)
-plot_IMU(IMU_2)
+lon = POS(:,4); 
+plot_AHRS(AHR2)
+% plot_IMU(IMU_0)
+% plot_IMU(IMU_1)
+% plot_IMU(IMU_2)
+
 
 % geoscatter(lat,lon,"filled")
 % geolimits([min(lat) max(lat)],[min(lon) max(lon)])
 % 
-% load("11_17_24\00000003.BIN-11150736.mat")
-% gps_status(GPS_0, GPA_0)
-% plot_altitudes(GPS_0,BARO_0, BARO_1)
+load("11_17_24\00000003.BIN-11150736.mat")
+gps_status(GPS_0, GPA_0)
+plot_altitudes(GPS_0,BARO_0, BARO_1)
 % 
 % figure
 % lat = POS(:,3);

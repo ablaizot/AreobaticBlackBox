@@ -14,23 +14,28 @@ ylabel("GPS Status")
 nexttile
 plot(time_GPS,GPS_0(:,7))
 xlabel("Time (s)")
-ylabel("Number of Satellites")
+ylabel("# of Satellites")
 
 time_GPA = GPA_0(:,2) / 1e6;
 
 nexttile
+time_diff = diff(GPS_0(:,2)) ./ 1e6;
+x = 2:length(GPS_0);
+x2 = GPS_0(x,2) ./ 1e6;
 plot(diff(GPS_0(:,2)/1e6))
+xlabel("Time (s)")
+ylabel("Time of Delay (s)")
 
 nexttile
 
 plot(time_GPA, GPA_0(:,5))
 xlabel("Time (s)")
-ylabel("Horizontal Accuracy (m)")
+ylabel("H-Accuracy (m)")
 
 nexttile
 plot(time_GPA, GPA_0(:,6))
 xlabel("Time (s)")
-ylabel("Vertical Accuracy (m)")
+ylabel("V-Accuracy (m)")
 
 nexttile
 plot(time_GPA, GPA_0(:,7))

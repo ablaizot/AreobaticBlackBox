@@ -1,5 +1,7 @@
 import subprocess
 import os
+import signal
+import sys
 from multiprocess import Process
 import datetime
 import time
@@ -71,9 +73,10 @@ def gps_logger():
         print(gps_test_cmd)
         out = subprocess.Popen(gps_test_cmd, shell=True, stdin=subprocess.PIPE)
         time.sleep(1)
-        out.terminate()  # Terminate the process after 1 second
         out.wait(2)
-        out.kill()  # Ensure the process is killed
+        os.killpg(os.getpgid(out.pid), signal.SIGTERM)
+        #out.terminate()  # Terminate the process after 1 second
+        #out.kill()  # Ensure the process is killed
         #check if gps_test.log is empty
         with open("gps_test.log", 'r') as f:
             gps_test_output = f.read()
