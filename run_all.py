@@ -68,7 +68,7 @@ def gps_logger():
             print(f"GPS device found at {device}")
         gps_test_cmd = f"cat {device}"
         print(gps_test_cmd)
-        out = subprocess.run(gps_test_cmd, shell=True)
+        out = subprocess.run(gps_test_cmd, shell=True, timeout=5)
 
         #check if out is empty
         if out.stdout == None or out.stdout == "":
