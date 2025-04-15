@@ -57,7 +57,7 @@ def track_blue_tape(image):
 
         # Get the bounding rectangle of the contour
         x, y, width, height = cv2.boundingRect(largest_contour)
-        
+
         # Adjust x, y to be relative to the whole image
         x += roi_x_start
         y += roi_y_start
@@ -80,11 +80,11 @@ def track_blue_tape(image):
 
             # Display coordinates
             cv2.putText(annotated_image, f"Tape: ({cx}, {cy})",
-                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
     # Draw a rectangle showing the ROI
-    cv2.rectangle(annotated_image, (roi_x_start, roi_y_start), 
-                  (roi_x_start + roi_width, roi_y_start + roi_height), (255, 0, 0), 2)
+    cv2.rectangle(annotated_image, (roi_x_start, roi_y_start),
+                    (roi_x_start + roi_width, roi_y_start + roi_height), (255, 0, 0), 2)
 
     return annotated_image, tape_coords
 
@@ -94,51 +94,55 @@ def format_time(seconds):
     return str(timedelta(seconds=int(seconds)))[2:7]  # Skip hours, get MM:SS
 
 def plot_tape_movements(tape_data):
-    """Generate plots showing tape movement over time"""
+    """Generate plots showing tape movement over time with normalized values (-1 to 1 range)"""
     if not tape_data:
         print("No tape data to plot")
         return
-    
-    times = [t for t, _, _ in tape_data]
-    x_coords = [x for _, x, _ in tape_data]
-    y_coords = [y for _, _, y in tape_data]
-    
+
+    times = [t for t, nx, ny in tape_data]
+    x_coords_norm = [nx for t, nx, ny in tape_data]
+    y_coords_norm = [ny for t, nx, ny in tape_data]
+
     # Create figure with 3 subplots
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 15))
-    
-    # Plot 1: X position over time
-    ax1.plot(times, x_coords, 'r-')
-    ax1.set_title('X Position Over Time')
+
+    # Plot 1: Normalized X position over time (-1 to 1 range)
+    ax1.plot(times, x_coords_norm, 'r-')
+    ax1.set_title('Normalized X Position Over Time (-1 to 1)')
     ax1.set_xlabel('Time (seconds)')
-    ax1.set_ylabel('X Position')
+    ax1.set_ylabel('Normalized X Position (-1 to 1)')
     ax1.grid(True)
-    
-    # Plot 2: Y position over time
-    ax2.plot(times, y_coords, 'b-')
-    ax2.set_title('Y Position Over Time')
+    ax1.set_ylim(-1.1, 1.1) # Set y-axis limits for normalized values
+
+    # Plot 2: Normalized Y position over time (-1 to 1 range)
+    ax2.plot(times, y_coords_norm, 'b-')
+    ax2.set_title('Normalized Y Position Over Time (-1 to 1)')
     ax2.set_xlabel('Time (seconds)')
-    ax2.set_ylabel('Y Position')
+    ax2.set_ylabel('Normalized Y Position (-1 to 1)')
     ax2.grid(True)
-    
-    # Plot 3: 2D trajectory
-    ax3.plot(x_coords, y_coords, 'g-o', alpha=0.5)
-    ax3.set_title('Tape Position Trajectory')
-    ax3.set_xlabel('X Position')
-    ax3.set_ylabel('Y Position')
+    ax2.set_ylim(-1.1, 1.1) # Set y-axis limits for normalized values
+
+    # Plot 3: 2D trajectory (normalized -1 to 1 range)
+    ax3.plot(x_coords_norm, y_coords_norm, 'g-o', alpha=0.5)
+    ax3.set_title('Tape Position Trajectory (Normalized -1 to 1)')
+    ax3.set_xlabel('Normalized X Position (-1 to 1)')
+    ax3.set_ylabel('Normalized Y Position (-1 to 1)')
     ax3.grid(True)
-    
+    ax3.set_xlim(-1.1, 1.1) # Set x-axis limits for normalized values
+    ax3.set_ylim(-1.1, 1.1) # Set y-axis limits for normalized values
+
     # Invert Y axis for more intuitive plotting (0 at top like screen coordinates)
     ax3.invert_yaxis()
-    
-    # Add timestamps to trajectory
-    for i in range(0, len(times), len(times) // 10):  # Add ~10 time labels
-        ax3.annotate(format_time(times[i]), (x_coords[i], y_coords[i]))
-    
+
+    # Add timestamps to trajectory (using normalized coordinates for annotation)
+    for i in range(0, len(times), max(1, len(times) // 10)):  # Add ~10 time labels
+        ax3.annotate(format_time(times[i]), (x_coords_norm[i], y_coords_norm[i]))
+
     # Save the plot
     fig.tight_layout()
-    fig.savefig('tape_movement_analysis.png')
-    print("Saved grip movement analysis to 'grip_movement_analysis.png'")
-    
+    fig.savefig('tape_movement_analysis_-1_1.png')
+    print("Saved grip movement analysis (-1 to 1 normalized) to 'tape_movement_analysis_-1_1.png'")
+
     # Show the plot
     plt.show()
 
@@ -147,11 +151,11 @@ def get_incremented_filename(base_filepath):
     """Generate a filename that doesn't override existing files by adding a counter."""
     if not os.path.exists(base_filepath):
         return base_filepath
-    
+
     directory, filename = os.path.split(base_filepath)
     name, extension = os.path.splitext(filename)
     counter = 1
-    
+
     while True:
         new_filename = f"{name}_{counter}{extension}"
         new_filepath = os.path.join(directory, new_filename)
@@ -177,7 +181,7 @@ def main():
 
     # Calculate frame positions
     start_time = 0
-    duration = 15  # Track for 10 seconds, for example
+    duration = 30  # Track for 30 seconds, for example
     duration_type = 'seconds'  # Can be 'seconds' or 'frames'
 
     if duration_type == 'seconds':
@@ -201,8 +205,8 @@ def main():
 
     # Get incremented filenames for outputs
     video_output_path = get_incremented_filename('videos/tracked_output_tape.mp4')
-    csv_output_path = get_incremented_filename('videos/tape_positions.csv')
-    plot_output_path = get_incremented_filename('videos/tape_movement_analysis.png')
+    csv_output_path = get_incremented_filename('videos/tape_positions_normalized_-1_1.csv') # Changed filename
+    plot_output_path = get_incremented_filename('videos/tape_movement_analysis_-1_1.png') # Changed filename
 
     # Optional: save the processed video
     out = cv2.VideoWriter(video_output_path,
@@ -211,14 +215,16 @@ def main():
     print(f"Video will be saved to: {video_output_path}")
 
     # Track coordinates over time for analysis
-    tape_positions = []
+    tape_positions_raw = []
+    all_x_coords = []
+    all_y_coords = []
 
     # CSV file for tape position data
     csv_file = open(csv_output_path, 'w', newline='')
     csv_writer = csv.writer(csv_file)
-    csv_writer.writerow(['Timestamp', 'Time_Seconds', 'X_Position', 'Y_Position'])
+    csv_writer.writerow(['Timestamp', 'Time_Seconds', 'X_Position_Normalized', 'Y_Position_Normalized', 'X_Position_Raw', 'Y_Position_Raw']) # Added raw values
 
-    print(f"Writing tape positions to: {csv_output_path}")
+    print(f"Writing normalized (-1 to 1 range) tape positions to: {csv_output_path}")
 
     print(f"Processing frames from {start_time / 60:.1f}:00 to {(start_time + duration) / 60:.1f}:00")
     print(f"Frame range: start_frame: {start_frame}, end_frame: {end_frame}, total_frames: {total_frames}")
@@ -243,15 +249,14 @@ def main():
 
         # Add timestamp to the frame
         cv2.putText(frame, f"Time: {timestamp}",
-                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                        (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
         # Record tape position with timestamp if grip was detected
         if tape_coords:
             tape_x, tape_y = tape_coords
-            tape_positions.append((video_time, tape_x, tape_y))
-
-            # Write to CSV
-            csv_writer.writerow([timestamp, video_time, tape_x, tape_y])
+            tape_positions_raw.append((video_time, tape_x, tape_y))
+            all_x_coords.append(tape_x)
+            all_y_coords.append(tape_y)
 
         # Write frame to output video
         out.write(annotated_frame)
@@ -272,15 +277,37 @@ def main():
     cap.release()
     out.release()
     cv2.destroyAllWindows()
-    csv_file.close()
 
-    print(f"Saved {len(tape_positions)} tape positions to 'tape_positions.csv'")
+    if all_x_coords and all_y_coords:
+        min_x = min(all_x_coords)
+        max_x = max(all_x_coords)
+        min_y = min(all_y_coords)
+        max_y = max(all_y_coords)
 
-    # Create plots of tape movement
-    if tape_positions:
-        plot_tape_movements(tape_positions)
+        normalized_tape_positions = []
+        for time, x, y in tape_positions_raw:
+            range_x = max_x - min_x
+            range_y = max_y - min_y
+            norm_x = 2 * (x - min_x) / range_x - 1 if range_x != 0 else 0
+            norm_y = 2 * (y - min_y) / range_y - 1 if range_y != 0 else 0
+            normalized_tape_positions.append((time, norm_x, norm_y, x, y)) # Store normalized and raw
+
+            # Write to CSV with normalized values
+            csv_writer.writerow([f"{int(time // 60):02d}:{int(time % 60):02d}", time, norm_x, norm_y, x, y])
+
+        csv_file.close()
+        print(f"Saved {len(normalized_tape_positions)} normalized (-1 to 1 range) tape positions to '{csv_output_path}'")
+
+        # Create plots of tape movement with normalized values (-1 to 1 range)
+        if normalized_tape_positions:
+            # Extract only the time and normalized x, y for plotting
+            plot_data = [(t, nx, ny) for t, nx, ny, _, _ in normalized_tape_positions]
+            plot_tape_movements(plot_data)
+        else:
+            print("No tape positions were detected for plotting.")
     else:
-        print("No tape positions were detected ")
+        csv_file.close()
+        print("No tape positions were detected.")
 
 
 if __name__ == "__main__":
