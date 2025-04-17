@@ -38,10 +38,19 @@ def mavproxy():
         # SSH_CONNECTION format: "<client_ip> <client_port> <server_ip> <server_port>"
         remote_ip = ssh_connection.split()[0]  # Get first element (client IP)
         print(f"Detected remote IP: {remote_ip}")
+        # save to file
+        with open("remote_ip.txt", "w") as f:
+            f.write(remote_ip)
     else:
-        # Fallback to a default IP if SSH_CONNECTION is not available
-        remote_ip = "127.0.0.1"
-        print(f"SSH_CONNECTION not found, using default IP: {remote_ip}")
+        # Fallback to a ip in remote_ip.txt if SSH_CONNECTION is not available
+        try:
+            with open("remote_ip.txt", "r") as f:
+                remote_ip = f.read().strip()
+                print(f"Using IP from remote_ip.txt: {remote_ip}")
+        except FileNotFoundError:
+            # Fallback to a default IP if remote_ip.txt is not available
+            remote_ip = "127.0.0.1"
+            print(f"SSH_CONNECTION not found, using default IP: {remote_ip}")
 
     subprocess.run(f"mkdir -p {folder_name}", shell=True)
     output_file = increment_filename(f"{folder_name}/mavproxy.log")
