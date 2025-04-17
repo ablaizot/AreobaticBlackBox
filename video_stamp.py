@@ -373,6 +373,22 @@ def stamp_video(display=False):
         camera1.release()
         cv2.destroyAllWindows()
         frame_writer0.stop()
-        frame_writer1.stop()
+        frame_writer1.stop()    
 
-
+        # make mp4s out of images in the image folder
+        print("Creating mp4s from images...")
+        for output_dir in [output_dir0, output_dir1]:
+            image_files = sorted(glob.glob(os.path.join(output_dir, '*.jpg')))
+            if image_files:
+                output_file = os.path.join(output_dir, 'output.mp4')
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                out = cv2.VideoWriter(output_file, fourcc, 30.0, (W, H))
+                
+                for image_file in image_files:
+                    img = cv2.imread(image_file)
+                    out.write(img)
+                
+                out.release()
+                print(f"Created {output_file} from images in {output_dir}")
+            else:
+                print(f"No images found in {output_dir}")
