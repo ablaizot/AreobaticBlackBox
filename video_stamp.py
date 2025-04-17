@@ -379,6 +379,8 @@ def stamp_video(display=False):
         print("Creating mp4s from images...")
         for output_dir in [output_dir0, output_dir1]:
             image_files = sorted(glob.glob(os.path.join(output_dir, '*.jpg')))
+            image_files = [(img, os.path.getctime(img)) for img in image_files]
+            image_files.sort(key=lambda x: x[1])
             if image_files:
                 output_file = os.path.join(output_dir, 'output.mp4')
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
