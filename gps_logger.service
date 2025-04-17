@@ -1,0 +1,13 @@
+[Unit]
+Description=GPS Logger Daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/coolhippo159/AreobaticBlackBox/run_all.py gps_logger
+Restart=always
+User=coolhippo159
+WorkingDirectory=/home/coolhippo159/AreobaticBlackBox/
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target
