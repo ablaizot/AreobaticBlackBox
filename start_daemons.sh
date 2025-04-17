@@ -1,3 +1,4 @@
+#!/bin/bash
 sudo systemctl enable stamp_video.service
 sudo systemctl enable mavproxy.service
 sudo systemctl enable gps_logger.service
