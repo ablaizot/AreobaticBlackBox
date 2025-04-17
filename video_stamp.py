@@ -289,8 +289,13 @@ def stamp_video(display=False):
     camera0 = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
     camera1 = cv2.VideoCapture(2, apiPreference=cv2.CAP_V4L2)
     
+    if not camera0.isOpened():
+        print("Error: Could not open camera0.")
+    if not camera1.isOpened():
+        print("Error: Could not open camera1 .")
+    
     if not camera0.isOpened() or not camera1.isOpened():
-        print("Error: Could not open one or both webcams.")
+        print("Exiting...")
         return
 
     # Set up video parameters
