@@ -148,21 +148,33 @@ class VideoProcessor:
 
     @staticmethod
     def get_latest_gps_sentence(directory):
-        """Read the latest GPS sentence from a file"""
+        """Read the latest GPS sentence from a file, with buffered reading"""
         list_of_files = glob.glob(os.path.join(directory, '*.log'))
         if not list_of_files:
             return None
         latest_file = max(list_of_files, key=os.path.getmtime)
-        latest_gps = None
-        print(f"Reading from {latest_file}")
-        with open(latest_file, 'r') as file:
-            for line in file:
-                if line.startswith('$GNGGA'):
-                    latest_gps = line.strip()
-                elif line.startswith('$GNGLL') and not latest_gps:
-                    latest_gps = line.strip()
-        print(f"Latest GPS: {latest_gps}")
-        return latest_gps
+        
+        # Use a binary read and seek to the end, then read last few KB
+        # This is much faster than reading the entire file
+        try:
+            with open(latest_file, 'rb') as file:
+                file.seek(0, os.SEEK_END)
+                size = file.tell()
+                file.seek(max(0, size - 4096), os.SEEK_SET)  # Read last 4KB
+                data = file.read().decode('utf-8', errors='ignore')
+                lines = data.splitlines()
+                
+                # Check the last few lines for GPS data
+                for line in reversed(lines):
+                    if line.startswith('$GNGGA'):
+                        return line.strip()
+                for line in reversed(lines):
+                    if line.startswith('$GNGLL'):
+                        return line.strip()
+            return None
+        except Exception as e:
+            print(f"Error reading GPS file: {e}")
+            return None
 
 class AsyncFrameWriter:
     def __init__(self, output_dir="Images", num_workers=4):
