@@ -30,6 +30,17 @@ def web_cam():
     subprocess.run(web_cam_cmd, shell=True)
 
 def mavproxy():
+    # First, kill any existing mavproxy processes
+    print("Checking for existing mavproxy processes...")
+    try:
+        # Find and kill any existing mavproxy processes
+        subprocess.run("pkill -f mavproxy.py", shell=True)
+        print("Terminated existing mavproxy processes")
+        # Small delay to ensure processes are fully terminated
+        time.sleep(1)
+    except Exception as e:
+        print(f"Note: Error when trying to kill existing mavproxy processes: {e}")
+    
     folder_name = increment_filename("mav_logs")
     
     # Get the remote IP address from SSH_CONNECTION
