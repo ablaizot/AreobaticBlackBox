@@ -325,7 +325,7 @@ def stamp_video(display=False):
 
     camera1.set(cv2.CAP_PROP_FRAME_WIDTH, W)
     camera1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
-    camera1.set(cv2.CAP_PROP_FPS, 120)
+    camera1.set(cv2.CAP_PROP_FPS, 30)
     camera1.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
     camera1.set(cv2.CAP_PROP_EXPOSURE, 3) 
 
