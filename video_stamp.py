@@ -61,6 +61,7 @@ class VideoProcessor:
             (f"FPS: {self.frame_count / (time.time() - self.start_time):.2f}", (10, 115), (255, 255, 0))
         ]
         
+
         print(f"Frame {self.frame_count} processed in {time.time() - t0:.2f} seconds")
         print(f"GPS Time: {gps_timestamp}")
         print(f"Sys Time: {sys_timestamp}")
@@ -304,11 +305,18 @@ def stamp_video(display=False):
     processor1 = VideoProcessor(W, H, 30)
 
     # Configure both cameras
-    for camera in [camera0, camera1]:
-        camera.set(cv2.CAP_PROP_FRAME_WIDTH, W)
-        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
-        camera.set(cv2.CAP_PROP_FPS, 120)
-        camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+    camera0.set(cv2.CAP_PROP_FRAME_WIDTH, W)
+    camera0.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
+    camera0.set(cv2.CAP_PROP_FPS, 120)
+    camera0.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+
+
+    camera1.set(cv2.CAP_PROP_FRAME_WIDTH, W)
+    camera1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
+    camera1.set(cv2.CAP_PROP_FPS, 120)
+    camera1.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+    camera1.set(cv2.CAP_PROP_EXPOSURE, 3) 
+
     
     # Initialize threading
     threadn = cv2.getNumberOfCPUs()
