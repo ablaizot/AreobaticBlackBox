@@ -386,8 +386,8 @@ def stamp_video(display=False):
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                 out = cv2.VideoWriter(output_file, fourcc, 30.0, (W, H))
                 
-                for image_file in image_files:
-                    img = cv2.imread(image_file)
+                for image_path, creation_time in image_files:
+                    img = cv2.imread(image_path)
                     out.write(img)
                 
                 out.release()
