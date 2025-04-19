@@ -3,34 +3,14 @@ import os
 import numpy as np # Import numpy for interpolation
 import matplotlib.pyplot as plt # Import matplotlib for plotting
 
-
-# Analog Values
-    # RPM
-    # Altitude
-    # Airspeed
-    # ailn ratio	
-    # aileron deflection in ratio –1.0 (left) to +1.0 (right)
-    # elev ratio
-    # elevator deflection in ratio –1.- (nose down) to +1.0 (noseup)
-    # rudd ratio	
-    # rudder deflection in ratio –1.- (left) to +1.0 (right)
-# Digital Values
-    # GPS coordinates
-    # Latitude
-    # Longitude
-    # Speed KIAS
-    # Vertical Speed
-    # pitch deg
-    # roll deg	
-    # hdng TRUE
-
-
+# Define the number of decimal places for interpolated values
+INTERPOLATED_DECIMAL_PLACES = 6
 
 def update_fdr_with_x_normalized(fdr_file, csv_file, output_fdr_file):
     """
-    Update the 9th column of the .fdr file with x_normalized values from the CSV file,
+    Update specified columns of the .fdr file with x_normalized values from the CSV file,
     dynamically finding the header based on a 'DATA' marker, interpolating if necessary,
-    plotting the comparison, and preserving the header.
+    plotting the comparison, preserving the header, and limiting decimal places.
 
     Args:
         fdr_file (str): Path to the original .fdr file.
@@ -54,23 +34,34 @@ def update_fdr_with_x_normalized(fdr_file, csv_file, output_fdr_file):
     header = []
     data_lines_raw = []
     data_start_index = -1
-    with open(fdr_file, 'r') as fdr:
-        fdr_lines = fdr.readlines()
-        for i, line in enumerate(fdr_lines):
-            # Check if the line starts with the word "DATA" after stripping whitespace
-            if line.strip().startswith("DATA"):
-                data_start_index = i
-                break # Stop searching once found
+    try:
+        with open(fdr_file, 'r') as fdr:
+            fdr_lines = fdr.readlines()
+            for i, line in enumerate(fdr_lines):
+                # Check if the line starts with the word "DATA" after stripping whitespace
+                if line.strip().startswith("DATA"):
+                    data_start_index = i
+                    break # Stop searching once found
 
-        if data_start_index == -1:
-            raise ValueError(f"Could not find a line starting with 'DATA' in {fdr_file}.")
+            if data_start_index == -1:
+                raise ValueError(f"Could not find a line starting with 'DATA' in {fdr_file}.")
 
-        # Header is everything *up to and including* the DATA line
-        header = fdr_lines[:data_start_index + 1]
-        # Data lines are everything *after* the DATA line
-        data_lines_raw = fdr_lines[data_start_index + 1:]
-        # Process data lines (split by comma, strip whitespace)
-        data_lines = [line.strip().split(',') for line in data_lines_raw if line.strip()] # Skip empty lines after DATA
+            # Header is everything *up to and including* the DATA line
+            header = fdr_lines[:data_start_index + 1]
+            # Data lines are everything *after* the DATA line
+            data_lines_raw = fdr_lines[data_start_index + 1:]
+            # Process data lines (split by comma, strip whitespace)
+            data_lines = [line.strip().split(',') for line in data_lines_raw if line.strip()] # Skip empty lines after DATA
+    except FileNotFoundError:
+        print(f"Error: Input FDR file not found at {fdr_file}")
+        return
+    except ValueError as e:
+        print(f"Error: {e}")
+        return
+    except Exception as e:
+        print(f"Error reading FDR file: {e}")
+        return
+
 
     num_data_lines = len(data_lines)
     num_x_normalized = len(x_normalized_str)
@@ -80,8 +71,10 @@ def update_fdr_with_x_normalized(fdr_file, csv_file, output_fdr_file):
         print("Warning: No data lines found after 'DATA' marker in the .fdr file. Output file will only contain the header.")
         x_normalized_final = [] # No data to update
     elif num_x_normalized == 0:
-         print("Warning: No valid 'X_Position_Normalized' data found in the CSV. Cannot update column 9.")
-         x_normalized_final = [''] * num_data_lines # Fill with empty strings
+         print("Warning: No valid 'X_Position_Normalized' data found in the CSV. Cannot update target columns.")
+         # If we proceed, the target columns won't be updated correctly unless padded later
+         # Decide if you want to stop or proceed with empty values
+         x_normalized_final = [''] * num_data_lines # Fill with empty strings for padding consistency
     elif num_data_lines != num_x_normalized:
         print(f"Warning: Row count mismatch: .fdr data ({num_data_lines}) vs x_normalized ({num_x_normalized}). Interpolating x_normalized data.")
 
@@ -108,43 +101,57 @@ def update_fdr_with_x_normalized(fdr_file, csv_file, output_fdr_file):
         plt.show()
         # --- End Plotting ---
 
-        x_normalized_final = [str(x) for x in interpolated_x_numeric]
+        # Convert interpolated values back to string with limited decimal places
+        x_normalized_final = [f"{x:.{INTERPOLATED_DECIMAL_PLACES}f}" for x in interpolated_x_numeric]
     else:
         print("Row counts match. No interpolation needed.")
-        x_normalized_final = x_normalized_str
+        # Optionally format original data too if consistency is needed
+        try:
+            x_normalized_final = [f"{float(x):.{INTERPOLATED_DECIMAL_PLACES}f}" for x in x_normalized_str]
+        except ValueError:
+             print("Warning: Could not format original X_Position_Normalized values to fixed decimals. Using original strings.")
+             x_normalized_final = x_normalized_str
 
-    # Update the 9th column (index 8)
-    indices = [7 ,8 ,9, 28]
-    for x_pos_col_index in indices:
+
+    # Update the specified columns (indices are 0-based)
+    # Columns 8, 9, 10 (indices 7, 8, 9) and Column 29 (index 28)
+    # Column 14 (index 13)
+    target_indices_to_update = [7, 8, 9, 13, 28]
+    max_target_index = max(target_indices_to_update) if target_indices_to_update else -1
+
+    if not x_normalized_final:
+         print("Warning: No final x_normalized data available to update columns.")
+    else:
+        print(f"Updating columns at indices: {target_indices_to_update}")
         for i, line in enumerate(data_lines):
-            if len(line) <= x_pos_col_index:
-                line.extend([''] * (x_pos_col_index - len(line) + 1))
+            # Ensure line is long enough for the highest index we need to write to
+            if len(line) <= max_target_index:
+                line.extend([''] * (max_target_index - len(line) + 1))
 
-            if i < len(x_normalized_final):
-                line[x_pos_col_index] = x_normalized_final[i]
+            # Get the corresponding value (original or interpolated)
+            # Use modulo in case x_normalized_final became shorter unexpectedly, though it shouldn't
+            value_to_write = x_normalized_final[i % len(x_normalized_final)]
 
-    for x_pos_col_index in [13, ]:
-        for i, line in enumerate(data_lines):
-            if len(line) <= x_pos_col_index:
-                line.extend([''] * (x_pos_col_index - len(line) + 1))
-
-            if i < len(x_normalized_final):
-                line[x_pos_col_index] = x_normalized_final[i]
-    
+            # Write the value to all target columns for the current row
+            for col_index in target_indices_to_update:
+                line[col_index] = value_to_write
 
 
     # Write the updated .fdr file
-    with open(output_fdr_file, 'w', newline='') as output_fdr:
-        # Write the header (including the DATA line)
-        output_fdr.writelines(header)
-        # Write the updated data
-        writer = csv.writer(output_fdr)
-        writer.writerows(data_lines)
+    try:
+        with open(output_fdr_file, 'w', newline='') as output_fdr:
+            # Write the header (including the DATA line)
+            output_fdr.writelines(header)
+            # Write the updated data
+            writer = csv.writer(output_fdr)
+            writer.writerows(data_lines)
+        print(f"Updated .fdr file saved to {output_fdr_file}")
+    except Exception as e:
+        print(f"Error writing output FDR file: {e}")
 
-    print(f"Updated .fdr file saved to {output_fdr_file}")
 
-
-def set_column_value(fdr_file, output_fdr_file, column_index, new_value):
+# --- set_column_value function remains the same ---
+def set_column_value(fdr_file, output_fdr_file, column_index, new_value, increment=0):
     """
     Reads an .fdr file, finds the 'DATA' marker, and sets a specific
     value for all rows in a specified column index within the data section.
@@ -203,6 +210,8 @@ def set_column_value(fdr_file, output_fdr_file, column_index, new_value):
             line.extend([''] * (column_index - len(line) + 1))
 
         # Assign the new value
+        
+        new_value = str(float(new_value) + increment*i)
         line[column_index] = str(new_value) # Ensure value is a string
 
     # Write the updated .fdr file
@@ -218,34 +227,27 @@ def set_column_value(fdr_file, output_fdr_file, column_index, new_value):
         print(f"Error writing output FDR file: {e}")
 
 
-# Example usage
+# --- Example Usage ---
 fdr_file = "C:/School/Senior_Desgin/FDR/Test_FDR_2.fdr"
 csv_file = "C:/School/Senior_Desgin/FDR/tape_positions_normalized.csv"
-output_fdr_file = "C:/School/Senior_Desgin/FDR/Test_FDR_2_test.fdr" # Updated output filename
+# Output file from the first step
+output_fdr_step1 = "C:/School/Senior_Desgin/FDR/Test_FDR_2_normalized_updated.fdr"
+# Final output file after setting other columns
+final_output_fdr = "C:/School/Senior_Desgin/FDR/Test_FDR_2_final_modified.fdr"
 
-update_fdr_with_x_normalized(fdr_file, csv_file, output_fdr_file)
+# Step 1: Update columns with normalized/interpolated data (limited decimals)
+update_fdr_with_x_normalized(fdr_file, csv_file, output_fdr_step1)
 
-# Example 1: Set column 7 (index 6, aileron ratio) to '0'
-output_aileron_fixed = "C:/School/Senior_Desgin/FDR/Test_FDR_2_aileron_0.fdr"
-set_column_value(output_fdr_file, output_fdr_file, column_index=13, new_value='250')
+# Step 2: Set fixed values for other columns using the output from Step 1 as input
+# Note: We write the final output to 'final_output_fdr' in the last call.
+# Intermediate calls overwrite the output_fdr_step1 file.
+set_column_value(output_fdr_step1, output_fdr_step1, column_index=13, new_value='250') # Overwrites output_fdr_step1
+set_column_value(output_fdr_step1, output_fdr_step1, column_index=15, new_value='20')  # Overwrites output_fdr_step1
+set_column_value(output_fdr_step1, output_fdr_step1, column_index=69, new_value='7000') # Overwrites output_fdr_step1
+set_column_value(output_fdr_step1, output_fdr_step1, column_index=68, new_value='7000') # Overwrites output_fdr_step1
+set_column_value(output_fdr_step1, output_fdr_step1, column_index=5, new_value='200', increment=0.01) # Overwrites output_fdr_step1
 
-# Example 2: Set column 9 (index 8, rudder ratio) to '0.5'
-output_rudder_fixed = "C:/School/Senior_Desgin/FDR/Test_FDR_2_rudder_0.5.fdr"
-set_column_value(output_fdr_file, output_fdr_file, column_index=14, new_value='20')
+# Last call writes to the final destination file
+set_column_value(output_fdr_step1, final_output_fdr, column_index=67, new_value='0.8')
 
-# Example 3: Set column 1 (index 0, time secon) to 'RESET' (just as an example)
-output_time_reset = "C:/School/Senior_Desgin/FDR/Test_FDR_2_time_reset.fdr"
-set_column_value(output_fdr_file, output_fdr_file, column_index=69, new_value='7000')
-
-set_column_value(output_fdr_file, output_fdr_file, column_index=70, new_value='7000')
-set_column_value(output_fdr_file, output_fdr_file, column_index=67, new_value='0.8')
-
-# time secon	time in seconds from the beginning of the recording	1.0
-# temp deg C	temp in degrees celsius of the ambient air near the airplane at current altitude	45
-# lon degre	longitude in degrees	–117.20
-# lat degre	latitude in degrees	34.000
-# h msl ft	height above mean sea level in TRUE feet, regardless of any barometric pressure setting or other errors	4010
-# radio altft	radio altimeter indication	0
-# ailn ratio	aileron deflection in ratio –1.0 (left) to +1.0 (right)	0
-# elev ratio	elevator deflection in ratio –1.- (nose down) to +1.0 (nose up)	0
-# rudd ratio	rudder deflection in ratio –1.- (left) to +1.0 (right)	0
+print(f"--- Processing complete. Final file saved to: {final_output_fdr} ---")
