@@ -11,6 +11,7 @@ from queue import Queue
 from threading import Thread
 import piexif
 from fractions import Fraction
+import numpy as np
 
 class VideoProcessor:
     def __init__(self, width=1280, height=720, fps=30):
@@ -296,9 +297,88 @@ class AsyncFrameWriter:
         for worker in self.workers:
             worker.join()
 
+class AutoExposureController:
+    def __init__(self, target_brightness=125, step_size=1, min_exposure=-10, max_exposure=10,
+                 update_interval=10, stability_threshold=5):
+        """
+        Controller for auto-exposure based on a specific region of the frame
+        
+        Args:
+            target_brightness: Target average brightness (0-255)
+            step_size: How much to adjust exposure per step
+            min_exposure: Minimum exposure value
+            max_exposure: Maximum exposure value
+            update_interval: Only update exposure every N frames
+            stability_threshold: Don't adjust if within this range of target
+        """
+        self.target_brightness = target_brightness
+        self.step_size = step_size
+        self.min_exposure = min_exposure
+        self.max_exposure = max_exposure
+        self.current_exposure = 0  # Will be read from camera
+        self.frame_count = 0
+        self.update_interval = update_interval
+        self.stability_threshold = stability_threshold
+        
+    def calculate_brightness(self, frame, region="bottom_half"):
+        """Calculate the average brightness of a region in the frame"""
+        if frame is None:
+            return None
+            
+        if region == "bottom_half":
+            height, width = frame.shape[:2]
+            roi = frame[height//2:, :]  # Bottom half of the frame
+        else:
+            roi = frame  # Use full frame
+            
+        # Convert to grayscale if needed
+        if len(roi.shape) == 3:
+            gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = roi
+            
+        # Calculate average brightness
+        avg_brightness = np.mean(gray)
+        return avg_brightness
+        
+    def update_exposure(self, frame, camera):
+        """Update camera exposure based on bottom half brightness"""
+        self.frame_count += 1
+        
+        # Only update every update_interval frames
+        if self.frame_count % self.update_interval != 0:
+            return
+            
+        # Read current camera exposure
+        self.current_exposure = camera.get(cv2.CAP_PROP_EXPOSURE)
+        
+        # Calculate brightness of bottom half
+        brightness = self.calculate_brightness(frame, "bottom_half")
+        if brightness is None:
+            return
+            
+        # Determine if adjustment is needed
+        brightness_diff = self.target_brightness - brightness
+        
+        # Only adjust if difference exceeds the stability threshold
+        if abs(brightness_diff) < self.stability_threshold:
+            return
+            
+        # Calculate new exposure value
+        adjustment = np.sign(brightness_diff) * self.step_size
+        new_exposure = self.current_exposure + adjustment
+        
+        # Clamp to valid range
+        new_exposure = max(self.min_exposure, min(new_exposure, self.max_exposure))
+        
+        # Apply new exposure if different
+        if new_exposure != self.current_exposure:
+            print(f"Adjusting exposure: {self.current_exposure} -> {new_exposure} (brightness: {brightness:.1f})")
+            camera.set(cv2.CAP_PROP_EXPOSURE, new_exposure)
+            self.current_exposure = new_exposure
+
 def stamp_video(display=False):
     # Initialize video captures
-    
     camera0 = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
     camera1 = cv2.VideoCapture(2, apiPreference=cv2.CAP_V4L2)
     
@@ -321,7 +401,20 @@ def stamp_video(display=False):
     camera0.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
     camera0.set(cv2.CAP_PROP_FPS, 120)
     camera0.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-
+    
+    # Initial exposure setting for camera0 (will be adjusted by auto-exposure)
+    initial_exposure = camera0.get(cv2.CAP_PROP_EXPOSURE)
+    print(f"Initial camera0 exposure: {initial_exposure}")
+    
+    # Initialize auto exposure controller for camera0
+    auto_exposure = AutoExposureController(
+        target_brightness=130,  # Target brightness (0-255)
+        step_size=0.5,          # Adjust by 0.5 each time 
+        min_exposure=-7,        # Minimum exposure value
+        max_exposure=7,         # Maximum exposure value
+        update_interval=15,     # Only update every 15 frames
+        stability_threshold=5   # Don't adjust if within 5 units of target
+    )
 
     camera1.set(cv2.CAP_PROP_FRAME_WIDTH, W)
     camera1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
@@ -329,12 +422,12 @@ def stamp_video(display=False):
     camera1.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
     camera1.set(cv2.CAP_PROP_EXPOSURE, 3) 
 
-    
     # Initialize threading
     threadn = cv2.getNumberOfCPUs()
     pool = ThreadPool(processes=threadn)
     pending0 = deque()
     pending1 = deque()
+    
     # Create output directories with date and timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir0 = f"Images/cam0_{timestamp}"
@@ -346,7 +439,6 @@ def stamp_video(display=False):
     frame_writer0 = AsyncFrameWriter(output_dir=output_dir0)
     frame_writer1 = AsyncFrameWriter(output_dir=output_dir1)
 
-    
     time.sleep(10)
     frame_idx = 0
     try:
@@ -357,6 +449,10 @@ def stamp_video(display=False):
                 ret1, frame1 = camera1.read()
                 if not ret0 or not ret1:
                     break
+                
+                # Update auto-exposure for camera0 based on bottom half of the image
+                if ret0:
+                    auto_exposure.update_exposure(frame0, camera0)
                 
                 task0 = pool.apply_async(processor0.process_frame, (frame0.copy(), time.time()))
                 task1 = pool.apply_async(processor1.process_frame, (frame1.copy(), time.time()))
@@ -414,3 +510,4 @@ def stamp_video(display=False):
                 print(f"Created {output_file} from images in {output_dir}")
             else:
                 print(f"No images found in {output_dir}")
+``` 
