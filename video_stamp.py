@@ -510,4 +510,3 @@ def stamp_video(display=False):
                 print(f"Created {output_file} from images in {output_dir}")
             else:
                 print(f"No images found in {output_dir}")
-``` 
