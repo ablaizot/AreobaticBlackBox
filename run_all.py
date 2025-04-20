@@ -6,6 +6,7 @@ from multiprocess import Process
 import datetime
 import time
 from video_stamp import stamp_video
+from ram_to_sd_transfer import RamDiskTransfer
 
 def increment_filename(filepath):
     base, ext = os.path.splitext(filepath)
@@ -147,14 +148,40 @@ def gps_logger():
     except (PermissionError, IOError) as e:
         print(f"Error accessing GPS device: {e}")
 
+def ram_to_sd_transfer():
+    """Transfer files from RAM disk to SD card in the background"""
+    # Configure RAM disk path based on system
+
+    ramdisk_path = "/mnt/ramdisk"
+    
+    print(f"Starting RAM disk to SD card transfer process using {ramdisk_path}")
+    
+    # Create and start the transfer process
+    transfer = RamDiskTransfer(
+        ramdisk_base=ramdisk_path,
+        sd_base="Images",
+        max_files_per_batch=50,
+        sleep_interval=1
+    )
+    
+    # Start the transfer process (this will run until the process is terminated)
+    transfer.start()
+
 def main():
     p1 = Process(target=stamp_video)
     p3 = Process(target=mavproxy)
     p4 = Process(target=gps_logger)
-
+    p5 = Process(target=ram_to_sd_transfer)
+    
     p1.start()
     p3.start()
     p4.start()
+    p5.start()
+    
+    # Wait for all processes to finish
+    p1.join()
+    p3.join()
+    p4.join()
 
 if __name__ == '__main__':
     main()

@@ -178,10 +178,19 @@ class VideoProcessor:
             return None
 
 class AsyncFrameWriter:
-    def __init__(self, output_dir="Images", num_workers=4):
-        self.output_dir = output_dir
+    def __init__(self, output_dir="Images", ramdisk_dir="/mnt/ramdisk", num_workers=4):
+        self.output_dir = output_dir          # Final SD card destination
+        self.ramdisk_dir = ramdisk_dir        # RAM disk temporary storage
         self.queue = Queue()
         self.workers = []
+        
+        # Create RAM disk directory if it doesn't exist
+        os.makedirs(self.ramdisk_dir, exist_ok=True)
+        
+        # Create camera-specific RAM disk directories
+        self.ramdisk_subdir = os.path.basename(output_dir)
+        self.ram_path = os.path.join(self.ramdisk_dir, self.ramdisk_subdir)
+        os.makedirs(self.ram_path, exist_ok=True)
         
         # Create worker threads
         for _ in range(num_workers):
@@ -194,14 +203,14 @@ class AsyncFrameWriter:
             frame_data = self.queue.get()
             if frame_data is None:
                 break
-            frame, idx, gps_data, system_time = frame_data  # Updated to receive system_time
+            frame, idx, gps_data, system_time = frame_data
             
-            # Save the image first
-            image_path = f'{self.output_dir}/opencv{str(idx)}.jpg'
+            # Save the image to RAM disk instead of SD card
+            image_path = f'{self.ram_path}/opencv{str(idx)}.jpg'
             cv2.imwrite(image_path, frame)
             
             # If GPS coordinates are available, add them as EXIF metadata
-            if gps_data and gps_data[1] and gps_data[2]:  # Check if we have valid lat/lon
+            if gps_data and gps_data[1] and gps_data[2]:
                 try:
                     self._add_gps_tags(image_path, gps_data[1], gps_data[2], idx, system_time)
                 except Exception as e:
@@ -400,6 +409,7 @@ def stamp_video(display=False):
     camera0.set(cv2.CAP_PROP_FRAME_WIDTH, W)
     camera0.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
     camera0.set(cv2.CAP_PROP_FPS, 20)
+    camera0.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     camera0.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
     
     # Initial exposure setting for camera0 (will be adjusted by auto-exposure)
@@ -419,6 +429,7 @@ def stamp_video(display=False):
     camera1.set(cv2.CAP_PROP_FRAME_WIDTH, W)
     camera1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
     camera1.set(cv2.CAP_PROP_FPS, 20)
+    camera0.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     camera1.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
     camera1.set(cv2.CAP_PROP_EXPOSURE, 3) 
 
@@ -500,7 +511,7 @@ def stamp_video(display=False):
             if image_files:
                 output_file = os.path.join(output_dir, 'output.mp4')
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                out = cv2.VideoWriter(output_file, fourcc, 30.0, (W, H))
+                out = cv2.VideoWriter(output_file, fourcc, 20.0, (W, H))
                 
                 for image_path, creation_time in image_files:
                     img = cv2.imread(image_path)
@@ -509,4 +520,4 @@ def stamp_video(display=False):
                 out.release()
                 print(f"Created {output_file} from images in {output_dir}")
             else:
-                print(f"No images found in {output_dir}")
+                print(f"No images found in {output_dir}") 
