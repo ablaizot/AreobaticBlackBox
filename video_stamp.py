@@ -393,13 +393,13 @@ def stamp_video(display=False):
 
     # Set up video parameters
     W, H = 1920, 1080
-    processor0 = VideoProcessor(W, H, 30)
-    processor1 = VideoProcessor(W, H, 30)
+    processor0 = VideoProcessor(W, H, 20)
+    processor1 = VideoProcessor(W, H, 20)
 
     # Configure both cameras
     camera0.set(cv2.CAP_PROP_FRAME_WIDTH, W)
     camera0.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
-    camera0.set(cv2.CAP_PROP_FPS, 30)
+    camera0.set(cv2.CAP_PROP_FPS, 20)
     camera0.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
     
     # Initial exposure setting for camera0 (will be adjusted by auto-exposure)
@@ -411,14 +411,14 @@ def stamp_video(display=False):
         target_brightness=130,  # Target brightness (0-255)
         step_size=0.5,          # Adjust by 0.5 each time 
         min_exposure=-7,        # Minimum exposure value
-        max_exposure=7,         # Maximum exposure value
+        max_exposure=7,         # Maximum exposure git value
         update_interval=15,     # Only update every 15 frames
         stability_threshold=5   # Don't adjust if within 5 units of target
     )
 
     camera1.set(cv2.CAP_PROP_FRAME_WIDTH, W)
     camera1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
-    camera1.set(cv2.CAP_PROP_FPS, 30)
+    camera1.set(cv2.CAP_PROP_FPS, 20)
     camera1.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
     camera1.set(cv2.CAP_PROP_EXPOSURE, 3) 
 
