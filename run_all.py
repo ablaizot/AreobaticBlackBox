@@ -6,6 +6,10 @@ from multiprocess import Process
 import datetime
 import time
 from video_stamp import stamp_video
+from flask import Flask, render_template_string, send_file
+import socket
+import glob
+import threading
 
 def increment_filename(filepath):
     base, ext = os.path.splitext(filepath)
@@ -45,7 +49,7 @@ def mavproxy():
     
     # Get the remote IP address from SSH_CONNECTION
     ssh_connection = os.getenv("SSH_CONNECTION", "")
-    if ssh_connection:
+    if (ssh_connection):
         # SSH_CONNECTION format: "<client_ip> <client_port> <server_ip> <server_port>"
         remote_ip = ssh_connection.split()[0]  # Get first element (client IP)
         print(f"Detected remote IP: {remote_ip}")
@@ -146,14 +150,183 @@ def gps_logger():
     except (PermissionError, IOError) as e:
         print(f"Error accessing GPS device: {e}")
 
+def get_local_ip():
+    """Get the local IP address of this machine"""
+    try:
+        # Create a socket and connect to an external server
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return local_ip
+    except Exception as e:
+        print(f"Error getting local IP: {e}")
+        return "127.0.0.1"  # Fallback to localhost
+
+def image_server():
+    """
+    Start a Flask web server that displays the latest images from both cameras
+    """
+    app = Flask(__name__)
+    
+    # Define the HTML template
+    HTML_TEMPLATE = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Camera Feeds</title>
+        <meta http-equiv="refresh" content="1">
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }
+            .container {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+            .camera-feed {
+                background-color: white;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            }
+            h1, h2 {
+                color: #333;
+            }
+            img {
+                max-width: 100%;
+                height: auto;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            .timestamp {
+                color: #666;
+                margin-top: 5px;
+                font-size: 0.8rem;
+            }
+            .image-wrapper {
+                position: relative;
+            }
+            .loading {
+                display: none;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                background-color: rgba(0,0,0,0.7);
+                padding: 10px;
+                border-radius: 5px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Camera Feeds</h1>
+        <div class="container">
+            <div class="camera-feed">
+                <h2>Camera 0 (Latest Image)</h2>
+                <div class="image-wrapper">
+                    <img src="/camera0_latest?timestamp={{ timestamp }}" alt="Camera 0">
+                    <div class="loading">Loading...</div>
+                </div>
+                <div class="timestamp">Last updated: {{ timestamp }}</div>
+            </div>
+            <div class="camera-feed">
+                <h2>Camera 1 (Latest Image)</h2>
+                <div class="image-wrapper">
+                    <img src="/camera1_latest?timestamp={{ timestamp }}" alt="Camera 1">
+                    <div class="loading">Loading...</div>
+                </div>
+                <div class="timestamp">Last updated: {{ timestamp }}</div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    @app.route('/')
+    def index():
+        """Serve the main page with both camera feeds"""
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return render_template_string(HTML_TEMPLATE, timestamp=timestamp)
+    
+    @app.route('/camera0_latest')
+    def camera0_latest():
+        """Serve the latest image from camera 0"""
+        try:
+            # Find the latest image directory for camera 0
+            dirs = sorted(glob.glob("Images/cam0_*"), key=os.path.getmtime, reverse=True)
+            if not dirs:
+                return "No camera 0 images available", 404
+                
+            # Find the latest image file in that directory
+            latest_dir = dirs[0]
+            files = sorted(glob.glob(f"{latest_dir}/*.jpg"), key=os.path.getmtime, reverse=True)
+            if not files:
+                return "No images in the latest directory", 404
+                
+            # Return the latest image
+            return send_file(files[0], mimetype='image/jpeg')
+        except Exception as e:
+            print(f"Error serving camera 0 image: {e}")
+            return str(e), 500
+    
+    @app.route('/camera1_latest')
+    def camera1_latest():
+        """Serve the latest image from camera 1"""
+        try:
+            # Find the latest image directory for camera 1
+            dirs = sorted(glob.glob("Images/cam1_*"), key=os.path.getmtime, reverse=True)
+            if not dirs:
+                return "No camera 1 images available", 404
+                
+            # Find the latest image file in that directory
+            latest_dir = dirs[0]
+            files = sorted(glob.glob(f"{latest_dir}/*.jpg"), key=os.path.getmtime, reverse=True)
+            if not files:
+                return "No images in the latest directory", 404
+                
+            # Return the latest image
+            return send_file(files[0], mimetype='image/jpeg')
+        except Exception as e:
+            print(f"Error serving camera 1 image: {e}")
+            return str(e), 500
+    
+    # Get the local IP address
+    local_ip = get_local_ip()
+    port = 5000
+    
+    print(f"Starting image server at http://{local_ip}:{port}/")
+    print(f"Access this URL from any device on your local network")
+    
+    # Start Flask in a thread-safe way - use threading mode for compatibility
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+
+
 def main():
     p1 = Process(target=stamp_video)
+    p2 = Process(target=image_server)  # Add the image server process
     p3 = Process(target=mavproxy)
     p4 = Process(target=gps_logger)
 
     p1.start()
+    p2.start()  # Start the image server
     p3.start()
     p4.start()
+
+    print("All processes started. Press Ctrl+C to stop.")
+    
+    try:
+        # Keep the main process running
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Stopping all processes...")
+        # Add cleanup code here if needed
 
 if __name__ == '__main__':
     main()
