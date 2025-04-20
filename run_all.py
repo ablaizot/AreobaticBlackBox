@@ -134,6 +134,7 @@ def gps_logger():
         
         except Exception as e:
             print(f"GPS test failed: {e}")
+            device = "/dev/ttyACM0"
             # Continue anyway - the device exists, we'll try to use it
         
         # Start actual GPS logging
