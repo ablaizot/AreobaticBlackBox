@@ -393,13 +393,13 @@ def stamp_video(display=False):
 
     # Set up video parameters
     W, H = 1920, 1080
-    processor0 = VideoProcessor(W, H, 120)
+    processor0 = VideoProcessor(W, H, 30)
     processor1 = VideoProcessor(W, H, 30)
 
     # Configure both cameras
     camera0.set(cv2.CAP_PROP_FRAME_WIDTH, W)
     camera0.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
-    camera0.set(cv2.CAP_PROP_FPS, 120)
+    camera0.set(cv2.CAP_PROP_FPS, 30)
     camera0.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
     
     # Initial exposure setting for camera0 (will be adjusted by auto-exposure)
