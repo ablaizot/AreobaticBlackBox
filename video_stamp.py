@@ -56,24 +56,51 @@ class VideoProcessor:
         self.frame_count += 1
         elapsed_time = int(time.time() - self.start_time)
         
-        # Add text overlays
-        texts = [
-            (f"Frame {self.frame_count}", (10, 15), (0, 0, 255)),
-            (f"GPS Time: {gps_timestamp}", (10, 40), (0, 255, 0)),
-            (f"Sys Time: {sys_timestamp}", (10, 65), (0, 200, 200)),
-            (f"Lat: {latitude} Lon: {longitude}", (10, 90), (255, 0, 0)),
-            (f"FPS: {self.frame_count / (time.time() - self.start_time):.2f}", (10, 115), (255, 255, 0))
+        # Get frame dimensions for positioning text on right side
+        height, width = frame.shape[:2]
+        
+        # Larger font size
+        font_size = 0.8
+        font_thickness = 2
+        line_height = 35  # Increased vertical spacing between lines
+        
+        # Position text on right side with right-aligned text
+        # Create text lines with positioning on right side
+        text_lines = [
+            (f"Frame {self.frame_count}", (0, 0, 255)),
+            (f"GPS Time: {gps_timestamp}", (0, 255, 0)),
+            (f"Sys Time: {sys_timestamp}", (0, 200, 200)),
+            (f"Lat: {latitude}", (255, 0, 0)),
+            (f"Lon: {longitude}", (255, 0, 0)),
+            (f"FPS: {self.frame_count / (time.time() - self.start_time):.2f}", (255, 255, 0))
         ]
         
+        # Draw text on right side
+        for i, (text, color) in enumerate(text_lines):
+            # Get text size to align right
+            (text_width, text_height), _ = cv2.getTextSize(
+                text, cv2.FONT_HERSHEY_SIMPLEX, font_size, font_thickness
+            )
+            
+            # Calculate position (20 pixels from right edge)
+            x_position = width - text_width - 20
+            y_position = 40 + (i * line_height)
+            
+            # Draw text with slight shadow for better visibility
+            cv2.putText(
+                frame, text, (x_position, y_position), 
+                cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 0, 0), font_thickness + 1
+            )
+            cv2.putText(
+                frame, text, (x_position, y_position), 
+                cv2.FONT_HERSHEY_SIMPLEX, font_size, color, font_thickness
+            )
 
         print(f"Frame {self.frame_count} processed in {time.time() - t0:.2f} seconds")
         print(f"GPS Time: {gps_timestamp}")
         print(f"Sys Time: {sys_timestamp}")
         print(f"Lat: {latitude} Lon: {longitude}")
         print(f"FPS: {self.frame_count / (time.time() - self.start_time):.2f}")
-        
-        for text, pos, color in texts:
-            cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
         
         return frame, t0, (gps_time, latitude, longitude), system_time
 
