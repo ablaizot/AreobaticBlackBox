@@ -437,8 +437,20 @@ def stamp_video(display=False):
     camera0.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
     camera0.set(cv2.CAP_PROP_FPS, 20)
     camera0.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-        # Auto exposure controller is still defined but not used
-    # auto_exposure = AutoExposureController(...)
+    
+    # Re-enable auto exposure controller
+    auto_exposure = AutoExposureController(
+        target_brightness=125,
+        step_size=1,
+        min_exposure=-10,
+        max_exposure=10,
+        update_interval=10,
+        stability_threshold=5
+    )
+    
+    # Read initial exposure value
+    initial_exposure = camera0.get(cv2.CAP_PROP_EXPOSURE)
+    print(f"Initial camera0 exposure: {initial_exposure}")
 
     camera1.set(cv2.CAP_PROP_FRAME_WIDTH, W)
     camera1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
@@ -474,9 +486,9 @@ def stamp_video(display=False):
                 if not ret0 or not ret1:
                     break
                 
-                # Auto-exposure update removed
-                # if ret0:
-                #     auto_exposure.update_exposure(frame0, camera0)
+                # Re-enable auto-exposure update
+                if ret0:
+                    auto_exposure.update_exposure(frame0, camera0)
                 
                 task0 = pool.apply_async(processor0.process_frame, (frame0.copy(), time.time()))
                 task1 = pool.apply_async(processor1.process_frame, (frame1.copy(), time.time()))
