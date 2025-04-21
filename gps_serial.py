@@ -6,7 +6,7 @@ import time
 
 class GPSReader:
     """Read GPS data directly from serial port in background thread"""
-    def __init__(self, device_paths=["/dev/ttyACM1", "/dev/ttyACM0"], baud_rate=115200):
+    def __init__(self, device_paths=["/dev/ttyACM0"], baud_rate=115200):
         self.device_paths = device_paths
         self.baud_rate = baud_rate
         self.serial_port = None
