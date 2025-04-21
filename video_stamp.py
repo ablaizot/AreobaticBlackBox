@@ -489,6 +489,8 @@ def stamp_video(display=False):
                 # Re-enable auto-exposure update
                 if ret0:
                     auto_exposure.update_exposure(frame0, camera0)
+                if ret1:
+                    auto_exposure.update_exposure(frame1, camera1)
                 
                 task0 = pool.apply_async(processor0.process_frame, (frame0.copy(), time.time()))
                 task1 = pool.apply_async(processor1.process_frame, (frame1.copy(), time.time()))
