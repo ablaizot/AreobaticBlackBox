@@ -1,6 +1,8 @@
 import serial
 import threading
 import pynmea2  # pip install pynmea2
+import os
+import time
 
 class GPSReader:
     """Read GPS data directly from serial port in background thread"""
