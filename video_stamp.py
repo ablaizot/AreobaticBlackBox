@@ -208,9 +208,10 @@ class VideoProcessor:
             return None
 
 class AsyncFrameWriter:
-    def __init__(self, output_dir="Images", num_workers=4):
+    def __init__(self, output_dir="Images", num_workers=2):
         self.output_dir = output_dir
-        self.queue = Queue()
+        # Limit queue size to prevent memory issues
+        self.queue = Queue(maxsize=200)  
         self.workers = []
         
         # Create worker threads
@@ -226,7 +227,7 @@ class AsyncFrameWriter:
                 break
             frame, idx, gps_data, system_time = frame_data  # Updated to receive system_time
             
-            # Save the image first
+            # Save the image firstS
             image_path = f'{self.output_dir}/opencv{str(idx)}.jpg'
             cv2.imwrite(image_path, frame)
             
@@ -524,21 +525,21 @@ def stamp_video(display=False):
             gps_reader.close()
 
         # make mp4s out of images in the image folder
-        print("Creating mp4s from images...")
-        for output_dir in [output_dir0, output_dir1]:
-            image_files = sorted(glob.glob(os.path.join(output_dir, '*.jpg')))
-            image_files = [(img, os.path.getctime(img)) for img in image_files]
-            image_files.sort(key=lambda x: x[1])
-            if image_files:
-                output_file = os.path.join(output_dir, 'output.mp4')
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                out = cv2.VideoWriter(output_file, fourcc, 30.0, (W, H))
+        # print("Creating mp4s from images...")
+        # for output_dir in [output_dir0, output_dir1]:
+        #     image_files = sorted(glob.glob(os.path.join(output_dir, '*.jpg')))
+        #     image_files = [(img, os.path.getctime(img)) for img in image_files]
+        #     image_files.sort(key=lambda x: x[1])
+        #     if image_files:
+        #         output_file = os.path.join(output_dir, 'output.mp4')
+        #         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        #         out = cv2.VideoWriter(output_file, fourcc, 30.0, (W, H))
                 
-                for image_path, creation_time in image_files:
-                    img = cv2.imread(image_path)
-                    out.write(img)
+        #         for image_path, creation_time in image_files:
+        #             img = cv2.imread(image_path)
+        #             out.write(img)
                 
-                out.release()
-                print(f"Created {output_file} from images in {output_dir}")
-            else:
-                print(f"No images found in {output_dir}")
+        #         out.release()
+        #         print(f"Created {output_file} from images in {output_dir}")
+        #     else:
+        #         print(f"No images found in {output_dir}")
