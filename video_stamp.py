@@ -274,7 +274,7 @@ class AsyncFrameWriter:
                 if value < 0:
                     loc_value = loc[0]
                 else:
-                    loc_value = loc[1]
+                    loc_fvalue = loc[1]
                 
                 abs_value = abs(value)
                 deg = int(abs_value)
@@ -438,20 +438,14 @@ def stamp_video(display=False):
     camera0.set(cv2.CAP_PROP_FPS, 20)
     camera0.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
     
-    # Re-enable auto exposure controller
-    auto_exposure = AutoExposureController(
-        target_brightness=125,
-        step_size=1,
-        min_exposure=-10,
-        max_exposure=10,
-        update_interval=10,
-        stability_threshold=5
-    )
+    # Disable auto exposure - set a fixed exposure value for camera0
+    camera0.set(cv2.CAP_PROP_EXPOSURE, 3)  # Using same value as camera1
     
-    # Read initial exposure value
-    initial_exposure = camera0.get(cv2.CAP_PROP_EXPOSURE)
-    print(f"Initial camera0 exposure: {initial_exposure}")
+    # Read exposure value to confirm
+    fixed_exposure = camera0.get(cv2.CAP_PROP_EXPOSURE)
+    print(f"Fixed camera0 exposure: {fixed_exposure}")
 
+    # Configure camera1
     camera1.set(cv2.CAP_PROP_FRAME_WIDTH, W)
     camera1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
     camera1.set(cv2.CAP_PROP_FPS, 20)
@@ -486,11 +480,7 @@ def stamp_video(display=False):
                 if not ret0 or not ret1:
                     break
                 
-                # Re-enable auto-exposure update
-                if ret0:
-                    auto_exposure.update_exposure(frame0, camera0)
-                if ret1:
-                    auto_exposure.update_exposure(frame1, camera1)
+                # Auto-exposure updates removed
                 
                 task0 = pool.apply_async(processor0.process_frame, (frame0.copy(), time.time()))
                 task1 = pool.apply_async(processor1.process_frame, (frame1.copy(), time.time()))
