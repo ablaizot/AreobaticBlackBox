@@ -12,6 +12,7 @@ from threading import Thread
 import piexif
 from fractions import Fraction
 import numpy as np
+from gps_serial import GPSReader
 
 class VideoProcessor:
     def __init__(self, width=1280, height=720, fps=30):
@@ -23,17 +24,18 @@ class VideoProcessor:
 
     def process_frame(self, frame, t0):
         """Process a single frame with GPS and timestamp overlay"""
-        # Get the latest GNGLL sentence from the file
-        sentence = self.get_latest_gps_sentence('gps_logs')
-        gps_time = ''
-        latitude = ''
-        longitude = ''
-        if sentence:
-            if sentence.startswith('$GNGGA'):
-                gps_time, latitude, longitude = self.parse_gngga(sentence)
-            elif sentence.startswith('$GNGLL'):
-                gps_time, latitude, longitude = self.parse_gngll(sentence)
-        else:
+        # Access the global GPS reader instance
+        global gps_reader
+        
+        # Get the latest GPS data
+        gps_data = gps_reader.get_latest_data() if gps_reader else None
+        
+        # Extract GPS information
+        gps_time = gps_data.get("gps_time") if gps_data else None
+        latitude = gps_data.get("latitude") if gps_data else None
+        longitude = gps_data.get("longitude") if gps_data else None
+        
+        if not latitude or not longitude:
             latitude, longitude = "No Lat", "No Lon"
         
         # Get current date and system time with milliseconds
@@ -42,7 +44,7 @@ class VideoProcessor:
         system_time = current_datetime.strftime("%H:%M:%S.%f")[:-3]  # Keep milliseconds
         
         # Use GPS time if available, otherwise fallback to system time
-        if not gps_time or gps_time == "Time Error":
+        if not gps_time:
             gps_time = system_time
         
         # Create timestamps
@@ -377,7 +379,13 @@ class AutoExposureController:
             camera.set(cv2.CAP_PROP_EXPOSURE, new_exposure)
             self.current_exposure = new_exposure
 
+
+
 def stamp_video(display=False):
+    # Initialize GPS reader (global so it can be accessed from process_frame)
+    global gps_reader
+    gps_reader = GPSReader()
+    
     # Initialize video captures
     camera0 = cv2.VideoCapture(0, apiPreference=cv2.CAP_V4L2)
     camera1 = cv2.VideoCapture(2, apiPreference=cv2.CAP_V4L2)
@@ -489,7 +497,11 @@ def stamp_video(display=False):
         camera1.release()
         cv2.destroyAllWindows()
         frame_writer0.stop()
-        frame_writer1.stop()    
+        frame_writer1.stop()
+        
+        # Close GPS reader
+        if gps_reader:
+            gps_reader.close()
 
         # make mp4s out of images in the image folder
         print("Creating mp4s from images...")
