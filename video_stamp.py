@@ -438,19 +438,13 @@ def stamp_video(display=False):
     camera0.set(cv2.CAP_PROP_FPS, 20)
     camera0.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
     
-    # Initial exposure setting for camera0 (will be adjusted by auto-exposure)
-    initial_exposure = camera0.get(cv2.CAP_PROP_EXPOSURE)
-    print(f"Initial camera0 exposure: {initial_exposure}")
+    # Set fixed exposure for camera0 (disable auto-exposure)
+    camera0.set(cv2.CAP_PROP_EXPOSURE, 3)  # Use the same value as camera1
+    fixed_exposure = camera0.get(cv2.CAP_PROP_EXPOSURE)
+    print(f"Fixed camera0 exposure: {fixed_exposure}")
     
-    # Initialize auto exposure controller for camera0
-    auto_exposure = AutoExposureController(
-        target_brightness=130,  # Target brightness (0-255)
-        step_size=0.5,          # Adjust by 0.5 each time 
-        min_exposure=-7,        # Minimum exposure value
-        max_exposure=7,         # Maximum exposure git value
-        update_interval=15,     # Only update every 15 frames
-        stability_threshold=5   # Don't adjust if within 5 units of target
-    )
+    # Auto exposure controller is still defined but not used
+    # auto_exposure = AutoExposureController(...)
 
     camera1.set(cv2.CAP_PROP_FRAME_WIDTH, W)
     camera1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
@@ -486,7 +480,7 @@ def stamp_video(display=False):
                 if not ret0 or not ret1:
                     break
                 
-                # Update auto-exposure for camera0 based on bottom half of the image
+                # Auto-exposure update removed
                 # if ret0:
                 #     auto_exposure.update_exposure(frame0, camera0)
                 
