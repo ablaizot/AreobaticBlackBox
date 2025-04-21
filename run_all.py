@@ -512,7 +512,7 @@ def main():
     #p4 = Process(target=gps_logger)
 
     p1.start()
-    p2.start()  # Start the image server
+    #p2.start()  # Start the image server
     p3.start()
     #p4.start()
 
