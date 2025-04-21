@@ -170,13 +170,12 @@ def image_server():
     """
     app = Flask(__name__)
     
-    # Define the HTML template
+    # Define the HTML template with improved JavaScript for smoother updates
     HTML_TEMPLATE = """
     <!DOCTYPE html>
     <html>
     <head>
         <title>Camera Feeds</title>
-        <meta http-equiv="refresh" content="1">
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -188,6 +187,16 @@ def image_server():
                 display: flex;
                 flex-direction: column;
                 gap: 20px;
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            @media (min-width: 992px) {
+                .container {
+                    flex-direction: row;
+                }
+                .camera-feed {
+                    flex: 1;
+                }
             }
             .camera-feed {
                 background-color: white;
@@ -198,53 +207,241 @@ def image_server():
             h1, h2 {
                 color: #333;
             }
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+            }
+            .controls {
+                margin-bottom: 10px;
+            }
             img {
                 max-width: 100%;
                 height: auto;
                 border: 1px solid #ddd;
                 border-radius: 4px;
+                display: block;
             }
             .timestamp {
                 color: #666;
                 margin-top: 5px;
-                font-size: 0.8rem;
+                font-size: 0.9rem;
             }
             .image-wrapper {
                 position: relative;
+                border-radius: 4px;
+                overflow: hidden;
+                background-color: #eee;
+                min-height: 200px;
             }
             .loading {
-                display: none;
                 position: absolute;
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
                 color: white;
                 background-color: rgba(0,0,0,0.7);
-                padding: 10px;
+                padding: 8px 15px;
                 border-radius: 5px;
+                display: none;
+                z-index: 10;
+            }
+            button {
+                background-color: #4CAF50;
+                border: none;
+                color: white;
+                padding: 8px 16px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 14px;
+                margin: 4px 2px;
+                cursor: pointer;
+                border-radius: 4px;
+            }
+            button:disabled {
+                background-color: #cccccc;
+                cursor: not-allowed;
+            }
+            select {
+                padding: 6px;
+                margin: 4px 2px;
+                border-radius: 4px;
+                border: 1px solid #ddd;
+            }
+            .status {
+                color: #666;
+                font-size: 0.9rem;
+                display: inline-block;
+                margin-left: 10px;
             }
         </style>
     </head>
     <body>
-        <h1>Camera Feeds</h1>
         <div class="container">
             <div class="camera-feed">
-                <h2>Camera 0 (Latest Image)</h2>
-                <div class="image-wrapper">
-                    <img src="/camera0_latest?timestamp={{ timestamp }}" alt="Camera 0">
-                    <div class="loading">Loading...</div>
+                <div class="header">
+                    <h2>Camera 0</h2>
+                    <div class="status" id="status0">Updating...</div>
                 </div>
-                <div class="timestamp">Last updated: {{ timestamp }}</div>
+                <div class="controls">
+                    <button id="toggle0" onclick="toggleUpdates(0)">Pause</button>
+                </div>
+                <div class="image-wrapper">
+                    <div class="loading" id="loading0">Loading...</div>
+                    <img id="camera0" src="/camera0_latest?t={{ timestamp }}" alt="Camera 0">
+                </div>
+                <div class="timestamp" id="timestamp0">Last updated: {{ timestamp }}</div>
             </div>
+            
             <div class="camera-feed">
-                <h2>Camera 1 (Latest Image)</h2>
-                <div class="image-wrapper">
-                    <img src="/camera1_latest?timestamp={{ timestamp }}" alt="Camera 1">
-                    <div class="loading">Loading...</div>
+                <div class="header">
+                    <h2>Camera 1</h2>
+                    <div class="status" id="status1">Updating...</div>
                 </div>
-                <div class="timestamp">Last updated: {{ timestamp }}</div>
+                <div class="controls">
+                    <button id="toggle1" onclick="toggleUpdates(1)">Pause</button>
+                </div>
+                <div class="image-wrapper">
+                    <div class="loading" id="loading1">Loading...</div>
+                    <img id="camera1" src="/camera1_latest?t={{ timestamp }}" alt="Camera 1">
+                </div>
+                <div class="timestamp" id="timestamp1">Last updated: {{ timestamp }}</div>
             </div>
         </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <div class="controls">
+                <label for="refresh-rate">Refresh Rate: </label>
+                <select id="refresh-rate" onchange="setRefreshRate()">
+                    <option value="500">0.5 seconds</option>
+                    <option value="1000" selected>1 second</option>
+                    <option value="2000">2 seconds</option>
+                    <option value="5000">5 seconds</option>
+                </select>
+                <button onclick="toggleAllUpdates()">Pause All</button>
+            </div>
+        </div>
+
+        <script>
+            // Camera update settings
+            const cameras = [
+                { id: 0, updating: true, interval: null },
+                { id: 1, updating: true, interval: null }
+            ];
+            let refreshRate = 1000; // 1 second default
+            let pauseAll = false;
+            
+            // Update timestamps with local time
+            function updateTimestamp(cameraId) {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString();
+                document.getElementById(`timestamp${cameraId}`).innerHTML = 
+                    `Last updated: ${now.toLocaleDateString()} ${timeString}`;
+            }
+            
+            // Update a specific camera
+            function updateCamera(cameraId) {
+                if (!cameras[cameraId].updating) return;
+                
+                const img = document.getElementById(`camera${cameraId}`);
+                const loading = document.getElementById(`loading${cameraId}`);
+                const timestamp = new Date().getTime(); // Use timestamp to prevent caching
+                
+                // Show loading indicator
+                loading.style.display = 'block';
+                
+                // Create a new image element
+                const newImg = new Image();
+                newImg.onload = function() {
+                    // Update the image source when loaded
+                    img.src = newImg.src;
+                    loading.style.display = 'none';
+                    updateTimestamp(cameraId);
+                    document.getElementById(`status${cameraId}`).textContent = 'Updated';
+                    
+                    // Briefly show "Updated" then revert to "Updating..."
+                    setTimeout(() => {
+                        if (cameras[cameraId].updating) {
+                            document.getElementById(`status${cameraId}`).textContent = 'Updating...';
+                        }
+                    }, 500);
+                };
+                
+                newImg.onerror = function() {
+                    loading.style.display = 'none';
+                    document.getElementById(`status${cameraId}`).textContent = 'Error loading image';
+                };
+                
+                // Load the new image
+                newImg.src = `/camera${cameraId}_latest?t=${timestamp}`;
+            }
+            
+            // Toggle updates for a specific camera
+            function toggleUpdates(cameraId) {
+                cameras[cameraId].updating = !cameras[cameraId].updating;
+                const button = document.getElementById(`toggle${cameraId}`);
+                const status = document.getElementById(`status${cameraId}`);
+                
+                if (cameras[cameraId].updating) {
+                    button.textContent = 'Pause';
+                    status.textContent = 'Updating...';
+                    updateCamera(cameraId); // Update immediately
+                    
+                    // Set interval to update regularly
+                    cameras[cameraId].interval = setInterval(() => {
+                        updateCamera(cameraId);
+                    }, refreshRate);
+                } else {
+                    button.textContent = 'Resume';
+                    status.textContent = 'Paused';
+                    clearInterval(cameras[cameraId].interval);
+                }
+            }
+            
+            // Set the refresh rate for all cameras
+            function setRefreshRate() {
+                const select = document.getElementById('refresh-rate');
+                refreshRate = parseInt(select.value);
+                
+                // Reset all intervals with the new refresh rate
+                cameras.forEach(camera => {
+                    if (camera.updating) {
+                        clearInterval(camera.interval);
+                        camera.interval = setInterval(() => {
+                            updateCamera(camera.id);
+                        }, refreshRate);
+                    }
+                });
+            }
+            
+            // Toggle all camera updates
+            function toggleAllUpdates() {
+                pauseAll = !pauseAll;
+                
+                cameras.forEach(camera => {
+                    // Only toggle if the current state doesn't match desired state
+                    if (camera.updating === pauseAll) {
+                        toggleUpdates(camera.id);
+                    }
+                });
+                
+                const button = document.querySelector('button[onclick="toggleAllUpdates()"]');
+                button.textContent = pauseAll ? 'Resume All' : 'Pause All';
+            }
+            
+            // Start the update process when the page loads
+            window.onload = function() {
+                // Initial update
+                updateCamera(0);
+                updateCamera(1);
+                
+                // Set update intervals
+                cameras[0].interval = setInterval(() => updateCamera(0), refreshRate);
+                cameras[1].interval = setInterval(() => updateCamera(1), refreshRate);
+            };
+        </script>
     </body>
     </html>
     """
