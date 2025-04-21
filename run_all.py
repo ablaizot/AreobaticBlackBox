@@ -150,11 +150,11 @@ def gps_logger():
 def main():
     p1 = Process(target=stamp_video)
     p3 = Process(target=mavproxy)
-    p4 = Process(target=gps_logger)
+    #p4 = Process(target=gps_logger)
 
     p1.start()
     p3.start()
-    p4.start()
+    #p4.start()
 
 if __name__ == '__main__':
     main()
