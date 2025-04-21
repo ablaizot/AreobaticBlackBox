@@ -112,7 +112,6 @@ class RamDiskTransfer:
             # Refresh directory list first
             self.scan_for_directories()
             
-            files_found = False
             for subdir in self.monitored_dirs:
                 ram_dir = os.path.join(self.ramdisk_base, subdir)
                 sd_dir = os.path.join(self.sd_base, subdir)
@@ -128,7 +127,6 @@ class RamDiskTransfer:
                 files = files[:self.max_files_per_batch]
                 
                 if files:
-                    files_found = True
                     logger.info(f"Found {len(files)} files in {subdir} to transfer")
                     
                 for src_path in files:
@@ -140,14 +138,8 @@ class RamDiskTransfer:
                         continue
                         
                     self.transfer_queue.put((src_path, dest_path))
-            
-            # Keep checking even if no files are found
-            if not files_found:
-                logger.debug("No files to transfer at this time")
-                
         except Exception as e:
             logger.error(f"Error in check_and_transfer: {e}")
-            # Continue despite errors
 
     def start(self):
         """Start the transfer process in a loop"""
