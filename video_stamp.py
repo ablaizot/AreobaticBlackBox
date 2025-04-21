@@ -29,6 +29,7 @@ class VideoProcessor:
         
         # Get the latest GPS data
         gps_data = gps_reader.get_latest_data() if gps_reader else None
+        print(f"GPS data: {gps_data}")
         
         # Extract GPS information
         gps_time = gps_data.get("gps_time") if gps_data else None
