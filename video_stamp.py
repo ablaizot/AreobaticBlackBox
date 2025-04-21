@@ -437,13 +437,7 @@ def stamp_video(display=False):
     camera0.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
     camera0.set(cv2.CAP_PROP_FPS, 20)
     camera0.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-    
-    # Set fixed exposure for camera0 (disable auto-exposure)
-    camera0.set(cv2.CAP_PROP_EXPOSURE, 3)  # Use the same value as camera1
-    fixed_exposure = camera0.get(cv2.CAP_PROP_EXPOSURE)
-    print(f"Fixed camera0 exposure: {fixed_exposure}")
-    
-    # Auto exposure controller is still defined but not used
+        # Auto exposure controller is still defined but not used
     # auto_exposure = AutoExposureController(...)
 
     camera1.set(cv2.CAP_PROP_FRAME_WIDTH, W)
