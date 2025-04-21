@@ -138,6 +138,7 @@ def gps_logger():
         
         except Exception as e:
             print(f"GPS test failed: {e}")
+            device = "/dev/ttyACM0"
             # Continue anyway - the device exists, we'll try to use it
         
         # Start actual GPS logging
@@ -311,12 +312,12 @@ def main():
     p1 = Process(target=stamp_video)
     p2 = Process(target=image_server)  # Add the image server process
     p3 = Process(target=mavproxy)
-    p4 = Process(target=gps_logger)
+    #p4 = Process(target=gps_logger)
 
     p1.start()
     p2.start()  # Start the image server
     p3.start()
-    p4.start()
+    #p4.start()
 
     print("All processes started. Press Ctrl+C to stop.")
     
