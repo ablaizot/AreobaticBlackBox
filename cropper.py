@@ -1,90 +1,86 @@
 import cv2
 import os
+import time
 
-def crop_video(input_video_path, output_video_path, x_start, y_start, crop_width, crop_height):
+def crop_video(input_video_path, output_video_path):
     """
-    Crops a video to a specified rectangular region.
+    Crops a video to its leftmost 80%.
 
     Args:
-        input_video_path (str): pedal_track1.mp4.
+        input_video_path (str): Path to the input video file.
         output_video_path (str): Path to save the cropped video.
-        x_start (int): Starting x-coordinate of the crop rectangle.
-        y_start (int): Starting y-coordinate of the crop rectangle.
-        crop_width (int): Width of the crop rectangle.
-        crop_height (int): Height of the crop rectangle.
     """
+    try:
+        # Open the input video
+        cap = cv2.VideoCapture(input_video_path)
+        if not cap.isOpened():
+            print(f"Error: Could not open video file: {input_video_path}")
+            return
 
-    x_start = 1200
-    y_start = 0
-    crop_width = 400
-    crop_height = 400
+        # Get video properties
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    # Open the input video
-    cap = cv2.VideoCapture('pedal_track1.mp4')
-    if not cap.isOpened():
-        print(f"Error: Could not open video file: {'pedal_track1.mp4'}")
-        return
+        # Calculate the crop dimensions for the leftmost 70%
+        x_start = 0
+        y_start = 0
+        crop_width = int(width * 0.7)
+        crop_height = height
 
-    # Get video properties
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        # Validate crop region
+        if x_start + crop_width > width or y_start + crop_height > height:
+            print("Error: Crop region exceeds video boundaries.")
+            cap.release()
+            return
 
-    # Validate crop region
-    if x_start + crop_width > width or y_start + crop_height > height:
-        print("Error: Crop region exceeds video boundaries.")
-        cap.release()
-        return
+        # Define the codec and create a VideoWriter object for the output video
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Use 'mp4v' for .mp4 output
+        out = cv2.VideoWriter(output_video_path, fourcc, fps, (crop_width, crop_height))
+        if not out.isOpened():
+            print(f"Error: Could not create output video file: {output_video_path}")
+            cap.release()
+            return
 
-    # Define the codec and create a VideoWriter object for the output video
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Use 'mp4v' for .mp4 output
-    out = cv2.VideoWriter(output_video_path, fourcc, fps, (crop_width, crop_height))
-    if not out.isOpened():
-        print(f"Error: Could not create output video file: {output_video_path}")
-        cap.release()
-        return
-
-    frame_count = 0
-    start_time = time.time()
-    print(f"Processing frames...")
-    
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            print("End of video or error reading frame.")
-            break
-
-        # Crop the frame
-        cropped_frame = frame[y_start:y_start + crop_height, x_start:x_start + crop_width]
-
-        # Write the cropped frame to the output video
-        out.write(cropped_frame)
-        frame_count += 1
+        frame_count = 0
+        start_time = time.time()
+        print(f"Processing frames...")
         
-        if frame_count % 30 == 0:
-            elapsed_time = time.time() - start_time
-            print(f"Processed {frame_count} frames in {elapsed_time:.2f} seconds")
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                print("End of video or error reading frame.")
+                break
 
-    # Release video capture and writer
-    cap.release()
-    out.release()
+            # Crop the frame
+            cropped_frame = frame[y_start:y_start + crop_height, x_start:x_start + crop_width]
 
-    print(f"Finished processing.  {frame_count} frames written to {output_video_path}")
-    
+            # Write the cropped frame to the output video
+            out.write(cropped_frame)
+            frame_count += 1
+            
+            if frame_count % 30 == 0:
+                elapsed_time = time.time() - start_time
+                print(f"Processed {frame_count} frames in {elapsed_time:.2f} seconds")
+
+        # Release video capture and writer
+        cap.release()
+        out.release()
+
+        print(f"Finished processing.  {frame_count} frames written to {output_video_path}")
+        
+
+    except Exception as e:  # Added except block to catch the error
+        print(f"An error occurred: {e}")
+        return  # Added return to handle the error
 
 if __name__ == "__main__":
     import time
     
-    input_video = "pedal_track1.mp4"  # Replace with your input video file
-    output_video = "cropped_video.mp4"  # Replace with your desired output video file name
-    
-    # Define the crop region.  These values should be integers.
-    x_start = int(600)  # Starting x-coordinate
-    y_start = int(0)  # Starting y-coordinate
-    crop_width = int(300)  # Width of the cropped region
-    crop_height = int(200) # Height of the cropped region
+    input_video = "leftright.mp4"  # Replace with your input video file
+    output_video = "croppedleft.mp4"  # Replace with your desired output video file name
     
     if not os.path.exists(input_video):
         print(f"Error: Input video file not found at {input_video}")
     else:
-        crop_video(input_video, output_video, x_start, y_start, crop_width, crop_height)
+        crop_video(input_video, output_video)
