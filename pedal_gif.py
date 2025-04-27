@@ -5,11 +5,13 @@ import numpy as np
 import io
 import base64
 from PIL import Image
+from scipy.signal import butter, filtfilt
 
-def create_animated_columns_gif(csv_file_path, output_gif_path="animated_columns.gif", fps=30):
+def create_animated_columns_gif(csv_file_path, output_gif_path="animated_columns.gif", filter_order=3, cutoff_frequency=2.0):
     """
     Generates an animated GIF from a CSV file, visualizing positive and negative
-    decimal values as filling columns.
+    decimal values as filling columns.  Applies a Butterworth filter to smooth
+    the data and calculates FPS from the time data in the CSV file.
 
     Args:
         csv_file_path (str): Path to the CSV file.  The CSV should have a header.
@@ -17,7 +19,10 @@ def create_animated_columns_gif(csv_file_path, output_gif_path="animated_columns
             column should contain decimal values between -1 and 1.
         output_gif_path (str, optional): Path to save the generated GIF.
             Defaults to "animated_columns.gif".
-        fps (int, optional): Frames per second of the animation. Defaults to 30.
+        filter_order (int, optional): Order of the Butterworth filter.
+            Higher values provide steeper roll-off. Defaults to 3.
+        cutoff_frequency (float, optional): Cutoff frequency of the Butterworth
+            filter in Hz.  Defaults to 2.0.
     """
     try:
         df = pd.read_csv(csv_file_path)
@@ -46,6 +51,23 @@ def create_animated_columns_gif(csv_file_path, output_gif_path="animated_columns
     time_values = df['time'].values
     decimal_values = df['value'].values
 
+    # Calculate FPS from the time data
+    if len(time_values) > 1:
+        fps = 1.0 / np.mean(np.diff(time_values))  # Average time difference
+        print(f"Calculated FPS from time data: {fps:.2f}")
+    else:
+        fps = 30  # Default FPS if there's only one time value
+        print("Warning: Only one time value found.  Using default FPS of 30.")
+
+    # Apply Butterworth filter
+    nyquist_freq = fps / 2.0
+    if cutoff_frequency >= nyquist_freq:
+        print("Error: Cutoff frequency must be less than Nyquist frequency (fps/2).")
+        return
+    normalized_cutoff = cutoff_frequency / nyquist_freq
+    b, a = butter(filter_order, normalized_cutoff, btype='low')
+    decimal_filtered = filtfilt(b, a, decimal_values)
+
     fig, ax = plt.subplots(figsize=(8, 6))  # Adjust figure size as needed
     ax.set_xlim(-1.5, 1.5)  # Set x-axis limits for the two columns
     ax.set_ylim(0, 1)      # Set y-axis limits (0 to 1 for percentage fill)
@@ -67,7 +89,7 @@ def create_animated_columns_gif(csv_file_path, output_gif_path="animated_columns
 
 
     def animate(i):
-        decimal = decimal_values[i]
+        decimal = decimal_filtered[i]
         time_value = time_values[i]
 
         time_text.set_text(f"Time: {time_value:.2f} s")  # Update time text
@@ -86,6 +108,8 @@ def create_animated_columns_gif(csv_file_path, output_gif_path="animated_columns
     try:
         ani.save(output_gif_path, writer='pillow', fps=fps)
         print(f"Successfully saved animation to {output_gif_path}")
+        print(f"Note: The animation was saved with an FPS of {fps:.2f}.  If the animation appears to play in slow motion,\n"
+              f"  please check the playback settings of your GIF viewer or web browser to ensure it is playing at the correct speed.")
     except Exception as e:
         print(f"Error saving GIF: {e}")
         return
@@ -99,12 +123,12 @@ if __name__ == "__main__":
     try:
         df = pd.read_csv(csv_file)
     except FileNotFoundError:
-        print(f"File not found at {csv_file}. Creating a dummy data.csv for demonstration.")
-        # Create a dummy dataframe
-        dummy_data = {'time': np.arange(0, 10, 0.1),
-                      'value': np.sin(np.arange(0, 10, 0.1))}
+        print(f"File not found at {csv_file}. Creating dummy data.")
+        time_data = np.arange(0, 5, 0.01)
+        throttle_data = np.linspace(0, 1, len(time_data)) # Linear throttle increase
+        dummy_data = {'time': time_data, 'throttle': throttle_data}
         dummy_df = pd.DataFrame(dummy_data)
         dummy_df.to_csv(csv_file, index=False)
 
-    create_animated_columns_gif(csv_file_path=csv_file, output_gif_path="animated_columns.gif", fps=30)
+    create_animated_columns_gif(csv_file_path=csv_file, output_gif_path="animated_columns.gif",  filter_order=3, cutoff_frequency=2.0)
     print("Done!")

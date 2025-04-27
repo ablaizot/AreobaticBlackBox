@@ -2,11 +2,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
+from scipy.signal import butter, filtfilt
 
-def create_control_stick_animation(csv_file_path, output_gif_path="control_stick_animation.gif", fps=30):
+def create_control_stick_animation(csv_file_path, output_gif_path="control_stick_animation.gif", filter_order=3, cutoff_frequency=2.0):
     """
     Generates an animated GIF from a CSV file, visualizing the movement of a
-    control stick.
+    control stick, with optional Butterworth filtering.  The FPS is determined
+    from the time data in the CSV file.
 
     Args:
         csv_file_path (str): Path to the CSV file. The CSV should have a header.
@@ -15,7 +17,10 @@ def create_control_stick_animation(csv_file_path, output_gif_path="control_stick
             X and Y values should be between 0 and 1.
         output_gif_path (str, optional): Path to save the generated GIF.
             Defaults to "control_stick_animation.gif".
-        fps (int, optional): Frames per second of the animation. Defaults to 30.
+        filter_order (int, optional): Order of the Butterworth filter.
+            Higher values provide steeper roll-off. Defaults to 3.
+        cutoff_frequency (float, optional): Cutoff frequency of the Butterworth
+            filter in Hz.  Defaults to 2.0.
     """
     try:
         df = pd.read_csv(csv_file_path)
@@ -51,6 +56,25 @@ def create_control_stick_animation(csv_file_path, output_gif_path="control_stick
     x_values = df['x'].values
     y_values = df['y'].values
 
+    # Calculate FPS from the time data
+    if len(time_values) > 1:
+        fps = 1.0 / np.mean(np.diff(time_values))  # Average time difference
+        print(f"Calculated FPS from time data: {fps:.2f}")
+    else:
+        fps = 30  # Default FPS if there's only one time value
+        print("Warning: Only one time value found.  Using default FPS of 30.")
+
+    # Apply Butterworth filter
+    nyquist_freq = fps / 2.0
+    if cutoff_frequency >= nyquist_freq:
+        print("Error: Cutoff frequency must be less than Nyquist frequency (fps/2).")
+        return
+
+    normalized_cutoff = cutoff_frequency / nyquist_freq
+    b, a = butter(filter_order, normalized_cutoff, btype='low')
+    x_filtered = filtfilt(b, a, x_values)
+    y_filtered = filtfilt(b, a, y_values)
+
     fig, ax = plt.subplots(figsize=(6, 6))  # Square plot for control stick
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
@@ -63,15 +87,15 @@ def create_control_stick_animation(csv_file_path, output_gif_path="control_stick
     ax.add_patch(circle)
 
     # Initial position of the control stick
-    stick_position, = ax.plot([x_values[0]], [y_values[0]], 'ro', markersize=10)  # Red circle
+    stick_position, = ax.plot([x_filtered[0]], [y_filtered[0]], 'ro', markersize=10)  # Red circle
     time_text = ax.text(0.05, 1.05, f"Time: {time_values[0]:.2f} s", transform=ax.transAxes)
 
     # Add this line:
-    stick_line, = ax.plot([0.5, x_values[0]], [0.5, y_values[0]], 'k-')  # Black line from center
+    stick_line, = ax.plot([0.5, x_filtered[0]], [0.5, y_filtered[0]], 'k-')  # Black line from center
 
     def animate(i):
-        x = x_values[i]
-        y = y_values[i]
+        x = x_filtered[i]
+        y = y_filtered[i]
         stick_position.set_data([x], [y])  # Update control stick position
         time_text.set_text(f"Time: {time_values[i]:.2f} s")
         # Update the line's data:
@@ -84,6 +108,8 @@ def create_control_stick_animation(csv_file_path, output_gif_path="control_stick
     try:
         ani.save(output_gif_path, writer='pillow', fps=fps)
         print(f"Successfully saved animation to {output_gif_path}")
+        print(f"Note: The animation was saved with an FPS of {fps:.2f}.  If the animation appears to play in slow motion,\n"
+              f"  please check the playback settings of your GIF viewer or web browser to ensure it is playing at the correct speed.")
     except Exception as e:
         print(f"Error saving GIF: {e}")
         return
@@ -98,12 +124,12 @@ if __name__ == "__main__":
         df = pd.read_csv(csv_file)
     except FileNotFoundError:
         print(f"File not found at {csv_file}. Creating dummy data.")
-        time_data = np.arange(0, 5, 0.1)
-        x_data = 0.5 + 0.5 * np.sin(2 * np.pi * time_data)  # Sine wave for x
-        y_data = 0.5 + 0.5 * np.cos(2 * np.pi * time_data)  # Cosine wave for y
+        time_data = np.arange(0, 5, 0.01)  # More points for 100 Hz
+        x_data = 0.5 + 0.5 * np.sin(2 * np.pi * 5 * time_data)  # Example signal
+        y_data = 0.5 + 0.5 * np.cos(2 * np.pi * 5 * time_data)
         dummy_data = {'time': time_data, 'x': x_data, 'y': y_data}
         dummy_df = pd.DataFrame(dummy_data)
         dummy_df.to_csv(csv_file, index=False)
 
-    create_control_stick_animation(csv_file_path=csv_file, output_gif_path="control_stick_animation.gif", fps=30)
+    create_control_stick_animation(csv_file_path=csv_file, output_gif_path="control_stick_animation.gif", filter_order=3, cutoff_frequency=2.0)
     print("Done!")

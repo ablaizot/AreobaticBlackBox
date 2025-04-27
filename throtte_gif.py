@@ -2,11 +2,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
+from scipy.signal import butter, filtfilt
 
-def create_throttle_animation_gif(csv_file_path, output_gif_path="throttle_animation.gif", fps=30):
+def create_throttle_animation_gif(csv_file_path, output_gif_path="throttle_animation.gif", filter_order=3, cutoff_frequency=2.0):
     """
     Generates an animated GIF from a CSV file, visualizing throttle values as a
-    filling column.
+    filling column.  The FPS is determined from the time data in the CSV file.
 
     Args:
         csv_file_path (str): Path to the CSV file.  The CSV should have a header.
@@ -14,7 +15,10 @@ def create_throttle_animation_gif(csv_file_path, output_gif_path="throttle_anima
             column should be 'throttle' with values between 0 and 1.
         output_gif_path (str, optional): Path to save the generated GIF.
             Defaults to "throttle_animation.gif".
-        fps (int, optional): Frames per second of the animation. Defaults to 30.
+        filter_order (int, optional): Order of the Butterworth filter.
+            Higher values provide steeper roll-off. Defaults to 3.
+        cutoff_frequency (float, optional): Cutoff frequency of the Butterworth
+            filter in Hz.  Defaults to 2.0.
     """
     try:
         df = pd.read_csv(csv_file_path)
@@ -43,6 +47,24 @@ def create_throttle_animation_gif(csv_file_path, output_gif_path="throttle_anima
     time_values = df['time'].values
     throttle_values = df['throttle'].values
 
+    # Calculate FPS from the time data
+    if len(time_values) > 1:
+        fps = 1.0 / np.mean(np.diff(time_values))  # Average time difference
+        print(f"Calculated FPS from time data: {fps:.2f}")
+    else:
+        fps = 30  # Default FPS if there's only one time value
+        print("Warning: Only one time value found.  Using default FPS of 30.")
+
+    # Apply Butterworth filter
+    nyquist_freq = fps / 2.0
+    if cutoff_frequency >= nyquist_freq:
+        print("Error: Cutoff frequency must be less than Nyquist frequency (fps/2).")
+        return
+    normalized_cutoff = cutoff_frequency / nyquist_freq
+    b, a = butter(filter_order, normalized_cutoff, btype='low')
+    throttle_filtered = filtfilt(b, a, throttle_values)
+
+
     fig, ax = plt.subplots(figsize=(4, 6))  # Adjust figure size as needed
     ax.set_xlim(-0.5, 0.5)  # Set x-axis limits for the column
     ax.set_ylim(0, 1)      # Set y-axis limits (0 to 1 for percentage fill)
@@ -64,7 +86,7 @@ def create_throttle_animation_gif(csv_file_path, output_gif_path="throttle_anima
 
 
     def animate(i):
-        throttle = throttle_values[i]
+        throttle = throttle_filtered[i]
         time_value = time_values[i]
         throttle_column.set_height(throttle)
         time_text.set_text(f"Time: {time_value:.2f} s")
@@ -76,6 +98,8 @@ def create_throttle_animation_gif(csv_file_path, output_gif_path="throttle_anima
     try:
         ani.save(output_gif_path, writer='pillow', fps=fps)
         print(f"Successfully saved animation to {output_gif_path}")
+        print(f"Note: The animation was saved with an FPS of {fps:.2f}.  If the animation appears to play in slow motion,\n"
+              f"  please check the playback settings of your GIF viewer or web browser to ensure it is playing at the correct speed.")
     except Exception as e:
         print(f"Error saving GIF: {e}")
         return
@@ -90,11 +114,11 @@ if __name__ == "__main__":
         df = pd.read_csv(csv_file)
     except FileNotFoundError:
         print(f"File not found at {csv_file}. Creating dummy data.")
-        time_data = np.arange(0, 5, 0.1)
+        time_data = np.arange(0, 5, 0.01)
         throttle_data = np.linspace(0, 1, len(time_data)) # Linear throttle increase
         dummy_data = {'time': time_data, 'throttle': throttle_data}
         dummy_df = pd.DataFrame(dummy_data)
         dummy_df.to_csv(csv_file, index=False)
 
-    create_throttle_animation_gif(csv_file_path=csv_file, output_gif_path="throttle_animation.gif", fps=30)
+    create_throttle_animation_gif(csv_file_path=csv_file, output_gif_path="throttle_animation.gif", filter_order=3, cutoff_frequency=2.0)
     print("Done!")
